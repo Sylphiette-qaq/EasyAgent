@@ -1,5 +1,6 @@
 package com.demo.agent.controller;
 
+import com.demo.agent.common.Result;
 import com.demo.agent.entity.User;
 import com.demo.agent.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,31 +18,31 @@ public class UserController {
 
     /** 新增 */
     @PostMapping
-    public boolean add(@RequestBody User user) {
-        return userService.save(user);
+    public Result<Boolean> add(@RequestBody User user) {
+        return Result.success(userService.save(user));
     }
 
     /** 查询所有 */
     @GetMapping
-    public List<User> list() {
-        return userService.list();
+    public Result<List<User>> list() {
+        return Result.success(userService.list());
     }
 
     /** 根据ID查询 */
     @GetMapping("/{id}")
-    public User getById(@PathVariable Long id) {
-        return userService.getById(id);
+    public Result<User> getById(@PathVariable Long id) {
+        return Result.success(userService.getById(id));
     }
 
     /** 更新 */
     @PutMapping
-    public boolean update(@RequestBody User user) {
-        return userService.updateById(user);
+    public Result<Boolean> update(@RequestBody User user) {
+        return Result.success(userService.updateById(user));
     }
 
     /** 删除 */
     @DeleteMapping("/{id}")
-    public boolean delete(@PathVariable Long id) {
-        return userService.removeById(id);
+    public Result<Boolean> delete(@PathVariable Long id) {
+        return Result.success(userService.removeById(id));
     }
 } 

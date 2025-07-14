@@ -1,5 +1,6 @@
 package com.demo.agent.controller;
 
+import com.demo.agent.common.Result;
 import com.demo.agent.entity.LlmModel;
 import com.demo.agent.service.LlmModelService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,31 +18,31 @@ public class LlmModelController {
 
     /** 新增 */
     @PostMapping
-    public boolean add(@RequestBody LlmModel llmModel) {
-        return llmModelService.save(llmModel);
+    public Result<Boolean> add(@RequestBody LlmModel llmModel) {
+        return Result.success(llmModelService.save(llmModel));
     }
 
     /** 查询所有 */
     @GetMapping
-    public List<LlmModel> list() {
-        return llmModelService.list();
+    public Result<List<LlmModel>> list() {
+        return Result.success(llmModelService.list());
     }
 
     /** 根据ID查询 */
     @GetMapping("/{id}")
-    public LlmModel getById(@PathVariable Long id) {
-        return llmModelService.getById(id);
+    public Result<LlmModel> getById(@PathVariable Long id) {
+        return Result.success(llmModelService.getById(id));
     }
 
     /** 更新 */
     @PutMapping
-    public boolean update(@RequestBody LlmModel llmModel) {
-        return llmModelService.updateById(llmModel);
+    public Result<Boolean> update(@RequestBody LlmModel llmModel) {
+        return Result.success(llmModelService.updateById(llmModel));
     }
 
     /** 删除 */
     @DeleteMapping("/{id}")
-    public boolean delete(@PathVariable Long id) {
-        return llmModelService.removeById(id);
+    public Result<Boolean> delete(@PathVariable Long id) {
+        return Result.success(llmModelService.removeById(id));
     }
 } 

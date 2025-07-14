@@ -1,5 +1,7 @@
 package com.demo.agent.controller;
 
+import com.demo.agent.common.Result;
+import com.demo.agent.entity.AiChatResponse;
 import com.demo.agent.service.AiService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -12,7 +14,7 @@ public class AiChat {
     private AiService aiService;
 
     @PostMapping("/aiChat")
-    public String aiChat(String userInput) {
-        return aiService.aiChat(userInput);
+    public Result<AiChatResponse> aiChat(String userInput,String sessionId) {
+        return Result.success(aiService.aiChat(userInput,sessionId));
     }
 }
