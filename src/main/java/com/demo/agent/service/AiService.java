@@ -6,6 +6,6 @@ import org.springframework.stereotype.Service;
 @Service
 public interface AiService {
 
-    public AiChatResponse aiChat(String userInput,String sessionId);
+    public String aiChat(String userInput,String sessionId);
 
 }
