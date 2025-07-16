@@ -7,6 +7,8 @@ mybatis:
 
 mybatis-plus:
   mapper-scan: com.demo.agent.mapper
+  configuration:
+      log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
 
 spring:
@@ -35,3 +37,8 @@ spring:
         options:
           model: Qwen/QwQ-32B
         completions-path: /v1/chat/completions
+logging:
+  level:
+    io.lettuce.core.protocol.ConnectionWatchdog: warn
+    io.lettuce.core.protocol.ReconnectionHandler: warn
+

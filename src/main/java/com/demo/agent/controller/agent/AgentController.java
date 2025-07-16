@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.demo.agent.common.Result;
+import com.demo.agent.common.UserContext;
 import com.demo.agent.model.entity.Agent;
 import com.demo.agent.model.request.AgentRequest;
 import com.demo.agent.model.response.AgentResponse;
@@ -35,6 +36,30 @@ public class AgentController {
         String s = agentService.useAgent(agentId, userInput);
         return Result.success(s);
     }
+
+    /** 分页展示用户已有的agent */
+    @PostMapping("/getUserAgent")
+    public Result<IPage<AgentResponse>> getUserAgent(@RequestBody AgentRequest query) {
+        LambdaQueryWrapper<Agent> wrapper = new LambdaQueryWrapper<>();
+        if (query.getName() != null && !query.getName().isEmpty()) {
+            wrapper.like(Agent::getName, query.getName());
+        }
+        if (query.getStatus() != null && !query.getStatus().isEmpty()) {
+            wrapper.eq(Agent::getStatus, query.getStatus());
+        }
+        Long userId = UserContext.getUserId();
+        wrapper.eq(Agent::getUserId, userId);
+        Page<Agent> page = new Page<>(query.getPageNum() == null ? 1 : query.getPageNum(), query.getPageSize() == null ? 10 : query.getPageSize());
+        IPage<Agent> agentPage = agentService.page(page, wrapper);
+        IPage<AgentResponse> respPage = agentPage.convert(a -> {
+            AgentResponse resp = new AgentResponse();
+            BeanUtils.copyProperties(a, resp);
+            return resp;
+        });
+        return Result.success(respPage);
+    }
+
+
 
     /** 分页条件查询 */
     @PostMapping("/page")

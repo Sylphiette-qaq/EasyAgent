@@ -28,6 +28,7 @@ public class GlobalExceptionHandler {
         } else {
             msg = ex.getMessage();
         }
+        log.info(msg);
         return Result.fail(ResultCode.PARAM_ERROR.getCode(), msg);
     }
 

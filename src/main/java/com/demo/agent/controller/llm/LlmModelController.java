@@ -61,7 +61,7 @@ public class LlmModelController {
 
     /** 根据ID查询 */
     @GetMapping("/{id}")
-    public Result<LlmModelResponse> getById(@PathVariable Long id) {
+    public Result<LlmModelResponse> getById(@PathVariable("id") Long id) {
         LlmModel model = llmModelService.getById(id);
         if (model == null) return Result.success(null);
         LlmModelResponse resp = new LlmModelResponse();
