@@ -1,5 +1,6 @@
 package com.demo.agent.model.base;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
 import java.time.LocalDateTime;
 
@@ -17,7 +18,9 @@ public class BaseEntity {
     /** 更新时间 */
     private LocalDateTime updatedAt;
 
+    @TableField(exist = false)
     private Integer pageNum;
 
+    @TableField(exist = false)
     private Integer pageSize;
 } 

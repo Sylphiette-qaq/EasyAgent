@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.demo.agent.common.Result;
+import com.demo.agent.common.UserContext;
 import com.demo.agent.model.entity.Mcp;
 import com.demo.agent.model.request.McpRequest;
 import com.demo.agent.model.response.McpResponse;
@@ -25,6 +26,7 @@ public class McpController {
     public Result<McpResponse> add(@RequestBody McpRequest req) {
         Mcp mcp = new Mcp();
         BeanUtils.copyProperties(req, mcp);
+        mcp.setUserId(UserContext.getUserId());
         mcpService.save(mcp);
         McpResponse resp = new McpResponse();
         BeanUtils.copyProperties(mcp, resp);

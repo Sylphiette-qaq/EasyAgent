@@ -1,6 +1,9 @@
 package com.demo.agent.model.entity;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
 import com.demo.agent.model.base.BaseEntity;
+import jdk.jfr.Description;
 import lombok.Data;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -10,7 +13,9 @@ import jakarta.validation.constraints.Size;
  */
 @Data
 public class Mcp extends BaseEntity {
+
     /** 主键ID */
+    @TableId(type = IdType.ASSIGN_ID)
     private Long id;
 
     /** 名称 */
@@ -20,6 +25,7 @@ public class Mcp extends BaseEntity {
 
     /** 类型 */
     @Size(max = 50, message = "类型不能超过50字符")
+    @Description("导入的MCP类型,0:stdio，1:sse，2：http")
     private String type;
 
     /** 命令 */
@@ -41,6 +47,9 @@ public class Mcp extends BaseEntity {
     /** 环境变量Value */
     @Size(max = 255, message = "环境变量Value不能超过255字符")
     private String envValue;
+
+    /** 用户ID */
+    private Long userId;
 
     /** 描述 */
     @Size(max = 255, message = "描述不能超过255字符")

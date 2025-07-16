@@ -16,6 +16,8 @@ public class McpResponse extends BaseEntity {
     private String url;
     private String envKey;
     private String envValue;
+    /** 用户ID */
+    private Long userId;
     private String description;
     private String status;
 } 

@@ -15,7 +15,7 @@ import jakarta.validation.constraints.Size;
 @TableName("user")
 public class User extends BaseEntity {
     /** 主键ID */
-    @TableId(type = IdType.AUTO)
+    @TableId(type = IdType.ASSIGN_ID)
     private Long id;
 
     /** 用户名 */

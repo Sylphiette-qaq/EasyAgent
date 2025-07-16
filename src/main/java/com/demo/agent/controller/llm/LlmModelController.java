@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.demo.agent.common.Result;
+import com.demo.agent.common.UserContext;
 import com.demo.agent.model.entity.LlmModel;
 import com.demo.agent.model.request.LlmModelRequest;
 import com.demo.agent.model.response.LlmModelResponse;
@@ -27,6 +28,8 @@ public class LlmModelController {
     public Result<LlmModelResponse> add(@RequestBody LlmModelRequest req) {
         LlmModel model = new LlmModel();
         BeanUtils.copyProperties(req, model);
+        model.setCreateBy(UserContext.getUserId());
+        model.setUpdateBy(UserContext.getUserId());
         llmModelService.save(model);
         LlmModelResponse resp = new LlmModelResponse();
         BeanUtils.copyProperties(model, resp);
@@ -72,6 +75,8 @@ public class LlmModelController {
         LlmModel model = llmModelService.getById(id);
         if (model == null) return Result.fail("模型不存在");
         BeanUtils.copyProperties(req, model);
+        model.setCreateBy(UserContext.getUserId());
+        model.setUpdateBy(UserContext.getUserId());
         llmModelService.updateById(model);
         LlmModelResponse resp = new LlmModelResponse();
         BeanUtils.copyProperties(model, resp);

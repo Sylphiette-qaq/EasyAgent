@@ -39,6 +39,9 @@ public class McpRequest extends BaseEntity {
     @Size(max = 255, message = "环境变量Value不能超过255字符")
     private String envValue;
 
+    /** 用户ID */
+    private Long userId;
+
     /** 描述 */
     @Size(max = 255, message = "描述不能超过255字符")
     private String description;

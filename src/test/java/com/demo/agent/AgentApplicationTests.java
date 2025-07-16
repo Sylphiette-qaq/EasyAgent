@@ -112,7 +112,7 @@ class AgentApplicationTests {
                 .chatMemoryProvider(memoryId -> MessageWindowChatMemory.withMaxMessages(10))
                 .build();
 
-        TokenStream tokenStream = assistant.chat("你有什么工具");
+        TokenStream tokenStream = assistant.chat(1,"你有什么工具");
 
         tokenStream
             .onPartialResponse((String partialResponse) -> {
@@ -180,7 +180,7 @@ class AgentApplicationTests {
                 .chatMemoryProvider(memoryId -> MessageWindowChatMemory.withMaxMessages(10))
                 .build();
 
-        TokenStream tokenStream = assistant.chat("你有什么工具");
+        TokenStream tokenStream = assistant.chat(1,"广州的天气");
 
         tokenStream
                 .onPartialResponse((String partialResponse) -> {
