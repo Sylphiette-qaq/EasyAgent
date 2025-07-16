@@ -1,7 +1,7 @@
 package com.demo.agent.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.demo.agent.entity.LlmModel;
+import com.demo.agent.model.entity.LlmModel;
 import org.apache.ibatis.annotations.Mapper;
 
 /**

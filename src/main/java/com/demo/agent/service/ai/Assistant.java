@@ -1,9 +1,8 @@
-package com.demo.agent.service;
+package com.demo.agent.service.ai;
 
-import dev.langchain4j.service.ChatMemoryAccess;
 import dev.langchain4j.service.MemoryId;
-import dev.langchain4j.service.TokenStream;
 import dev.langchain4j.service.UserMessage;
+import dev.langchain4j.service.memory.ChatMemoryAccess;
 
 public interface Assistant extends ChatMemoryAccess {
 

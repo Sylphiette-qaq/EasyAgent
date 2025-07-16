@@ -1,9 +1,9 @@
-package com.demo.agent.controller;
+package com.demo.agent.controller.user;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.demo.agent.common.Result;
-import com.demo.agent.service.AuthService;
-import com.demo.agent.entity.User;
+import com.demo.agent.service.user.AuthService;
+import com.demo.agent.model.entity.User;
 import com.demo.agent.mapper.UserMapper;
 import cn.hutool.crypto.digest.BCrypt;
 import org.springframework.beans.factory.annotation.Autowired;

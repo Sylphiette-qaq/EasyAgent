@@ -1,8 +1,7 @@
-package com.demo.agent.controller;
+package com.demo.agent.controller.llm;
 
 import com.demo.agent.common.Result;
-import com.demo.agent.entity.AiChatResponse;
-import com.demo.agent.service.AiService;
+import com.demo.agent.service.ai.AiService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;

@@ -1,4 +1,4 @@
-package com.demo.agent.service;
+package com.demo.agent.service.user;
 
 public interface AuthService {
     /**

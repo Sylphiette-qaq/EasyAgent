@@ -1,6 +1,5 @@
-package com.demo.agent.service;
+package com.demo.agent.service.ai;
 
-import com.demo.agent.entity.AiChatResponse;
 import org.springframework.stereotype.Service;
 
 @Service

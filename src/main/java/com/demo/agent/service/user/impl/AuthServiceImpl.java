@@ -1,9 +1,9 @@
-package com.demo.agent.service.impl;
+package com.demo.agent.service.user.impl;
 
 import cn.hutool.crypto.digest.BCrypt;
-import com.demo.agent.entity.User;
+import com.demo.agent.model.entity.User;
 import com.demo.agent.mapper.UserMapper;
-import com.demo.agent.service.AuthService;
+import com.demo.agent.service.user.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;

@@ -1,7 +1,7 @@
-package com.demo.agent.service;
+package com.demo.agent.service.ai;
 
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.demo.agent.entity.LlmModel;
+import com.demo.agent.model.entity.LlmModel;
 
 /**
  * LlmModel服务接口

@@ -1,9 +1,9 @@
-package com.demo.agent.service.impl;
+package com.demo.agent.service.ai.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.demo.agent.entity.LlmModel;
+import com.demo.agent.model.entity.LlmModel;
 import com.demo.agent.mapper.LlmModelMapper;
-import com.demo.agent.service.LlmModelService;
+import com.demo.agent.service.ai.LlmModelService;
 import org.springframework.stereotype.Service;
 
 /**
