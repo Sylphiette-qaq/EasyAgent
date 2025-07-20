@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.demo.agent.common.Result;
 import com.demo.agent.common.UserContext;
-import com.demo.agent.model.entity.LlmModel;
+import com.demo.agent.model.entity.LlmModelEntity;
 import com.demo.agent.model.request.LlmModelRequest;
 import com.demo.agent.model.response.LlmModelResponse;
 import com.demo.agent.service.ai.LlmModelService;
@@ -26,7 +26,7 @@ public class LlmModelController {
      */
     @PostMapping
     public Result<LlmModelResponse> add(@RequestBody LlmModelRequest req) {
-        LlmModel model = new LlmModel();
+        LlmModelEntity model = new LlmModelEntity();
         BeanUtils.copyProperties(req, model);
         model.setCreateBy(UserContext.getUserId());
         model.setUpdateBy(UserContext.getUserId());
@@ -39,18 +39,18 @@ public class LlmModelController {
     /** 分页条件查询 */
     @PostMapping("/page")
     public Result<IPage<LlmModelResponse>> page(@RequestBody LlmModelRequest query) {
-        LambdaQueryWrapper<LlmModel> wrapper = new LambdaQueryWrapper<>();
+        LambdaQueryWrapper<LlmModelEntity> wrapper = new LambdaQueryWrapper<>();
         if (query.getName() != null && !query.getName().isEmpty()) {
-            wrapper.like(LlmModel::getName, query.getName());
+            wrapper.like(LlmModelEntity::getName, query.getName());
         }
         if (query.getStatus() != null) {
-            wrapper.eq(LlmModel::getStatus, query.getStatus());
+            wrapper.eq(LlmModelEntity::getStatus, query.getStatus());
         }
-        if (query.getUserId() != null) {
-            wrapper.eq(LlmModel::getUserId, query.getUserId());
-        }
-        Page<LlmModel> page = new Page<>(query.getPageNum(), query.getPageSize());
-        IPage<LlmModel> modelPage = llmModelService.page(page, wrapper);
+        Long userId = UserContext.getUserId();
+        // 用户只能查看自己的模型
+        wrapper.eq(LlmModelEntity::getUserId, userId);
+        Page<LlmModelEntity> page = new Page<>(query.getPageNum(), query.getPageSize());
+        IPage<LlmModelEntity> modelPage = llmModelService.page(page, wrapper);
         IPage<LlmModelResponse> respPage = modelPage.convert(model -> {
             LlmModelResponse resp = new LlmModelResponse();
             BeanUtils.copyProperties(model, resp);
@@ -62,7 +62,7 @@ public class LlmModelController {
     /** 根据ID查询 */
     @GetMapping("/{id}")
     public Result<LlmModelResponse> getById(@PathVariable("id") Long id) {
-        LlmModel model = llmModelService.getById(id);
+        LlmModelEntity model = llmModelService.getById(id);
         if (model == null) return Result.success(null);
         LlmModelResponse resp = new LlmModelResponse();
         BeanUtils.copyProperties(model, resp);
@@ -72,7 +72,7 @@ public class LlmModelController {
     /** 更新 */
     @PutMapping
     public Result<LlmModelResponse> update(@RequestBody LlmModelRequest req, @RequestParam Long id) {
-        LlmModel model = llmModelService.getById(id);
+        LlmModelEntity model = llmModelService.getById(id);
         if (model == null) return Result.fail("模型不存在");
         BeanUtils.copyProperties(req, model);
         model.setCreateBy(UserContext.getUserId());

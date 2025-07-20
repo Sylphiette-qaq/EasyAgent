@@ -19,27 +19,12 @@ public class McpRequest extends BaseEntity {
     @Size(max = 50, message = "类型不能超过50字符")
     private String type;
 
-    /** 命令 */
-    @Size(max = 255, message = "命令不能超过255字符")
-    private String command;
+    /** JSON配置 */
+    @NotBlank(message = "配置不能为空")
+    private String json;
 
-    /** 参数 */
-    @Size(max = 255, message = "参数不能超过255字符")
-    private String args;
-
-    /** URL */
-    @Size(max = 255, message = "URL不能超过255字符")
-    private String url;
-
-    /** 环境变量Key */
-    @Size(max = 100, message = "环境变量Key不能超过100字符")
-    private String envKey;
-
-    /** 环境变量Value */
-    @Size(max = 255, message = "环境变量Value不能超过255字符")
-    private String envValue;
-
-    /** 用户ID */
+    /** 所属的用户id */
+    @NotBlank(message = "所属的用户id")
     private Long userId;
 
     /** 描述 */

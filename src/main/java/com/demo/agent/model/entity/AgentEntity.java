@@ -2,13 +2,15 @@ package com.demo.agent.model.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import com.demo.agent.model.base.BaseEntity;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
-public class Agent extends BaseEntity {
+@TableName("agent")
+public class AgentEntity extends BaseEntity {
     /** 主键ID */
     @TableId(type = IdType.ASSIGN_ID)
     private Long id;

@@ -2,12 +2,14 @@ package com.demo.agent;
 
 import com.demo.agent.service.ai.Assistant;
 import com.demo.agent.service.ai.AssistantStream;
+import com.demo.agent.tool.PersistentChatMemoryStore;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.mcp.McpToolProvider;
 import dev.langchain4j.mcp.client.DefaultMcpClient;
 import dev.langchain4j.mcp.client.McpClient;
 import dev.langchain4j.mcp.client.transport.http.HttpMcpTransport;
 import dev.langchain4j.mcp.client.transport.stdio.StdioMcpTransport;
+import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.StreamingChatModel;
@@ -18,16 +20,14 @@ import dev.langchain4j.rag.content.Content;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.TokenStream;
 import dev.langchain4j.service.tool.ToolExecution;
-import io.modelcontextprotocol.client.transport.StdioClientTransport;
-import io.modelcontextprotocol.spec.McpTransport;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import java.util.List;
-import cn.hutool.json.JSONUtil;
 
 @SpringBootTest
-class AgentApplicationTests {
+class AgentEntityApplicationTests {
 
     class Tools {
 
@@ -41,6 +41,9 @@ class AgentApplicationTests {
             return a * b;
         }
     }
+
+    @Autowired
+    private PersistentChatMemoryStore persistentChatMemoryStore;
 
     /**
      * 测试每个用户记忆
@@ -112,7 +115,7 @@ class AgentApplicationTests {
                 .chatMemoryProvider(memoryId -> MessageWindowChatMemory.withMaxMessages(10))
                 .build();
 
-        TokenStream tokenStream = assistant.chat(1,"你有什么工具");
+        TokenStream tokenStream = assistant.chat(Long.valueOf(1),"你有什么工具");
 
         tokenStream
             .onPartialResponse((String partialResponse) -> {
@@ -146,6 +149,9 @@ class AgentApplicationTests {
      */
     @Test
     void testWithTool() throws InterruptedException {
+
+
+
         String apiKey = "sk-hebdhedifmonpceqzyncovsvaxnukrugdghnqgrqnozzmkni";
         StreamingChatModel model =   OpenAiStreamingChatModel.builder()
                 .baseUrl("https://api.siliconflow.cn/v1")
@@ -153,6 +159,13 @@ class AgentApplicationTests {
                 .modelName("Qwen/Qwen3-8B")
                 .build();
 
+
+
+        ChatMemoryProvider chatMemoryProvider = memoryId -> MessageWindowChatMemory.builder()
+                .id(memoryId)
+                .maxMessages(10)
+                .chatMemoryStore(persistentChatMemoryStore)
+                .build();
 
         // stdio连接
         StdioMcpTransport transport = new StdioMcpTransport.Builder()
@@ -177,10 +190,12 @@ class AgentApplicationTests {
         AssistantStream assistant = AiServices.builder(AssistantStream.class)
                 .streamingChatModel(model)
                 .toolProvider(toolProvider)
-                .chatMemoryProvider(memoryId -> MessageWindowChatMemory.withMaxMessages(10))
+                .chatMemoryProvider(chatMemoryProvider)
                 .build();
 
-        TokenStream tokenStream = assistant.chat(1,"广州的天气");
+        Long l = 1L;
+
+        TokenStream tokenStream = assistant.chat(l,"广州今天的天气");
 
         tokenStream
                 .onPartialResponse((String partialResponse) -> {

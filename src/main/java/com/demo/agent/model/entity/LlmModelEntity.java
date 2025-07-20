@@ -14,7 +14,7 @@ import jakarta.validation.constraints.Size;
  */
 @Data
 @TableName("llm_model")
-public class LlmModel extends BaseEntity {
+public class LlmModelEntity extends BaseEntity {
     /** 主键ID */
     @TableId(type = IdType.ASSIGN_ID)
     private Long id;

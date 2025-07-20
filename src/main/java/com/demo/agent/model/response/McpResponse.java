@@ -1,6 +1,7 @@
 package com.demo.agent.model.response;
 
 import com.demo.agent.model.base.BaseEntity;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 /**
@@ -11,12 +12,7 @@ public class McpResponse extends BaseEntity {
     private Long id;
     private String name;
     private String type;
-    private String command;
-    private String args;
-    private String url;
-    private String envKey;
-    private String envValue;
-    /** 用户ID */
+    private String json;
     private Long userId;
     private String description;
     private String status;

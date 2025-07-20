@@ -10,7 +10,9 @@ import org.springframework.web.servlet.HandlerInterceptor;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.time.Duration;
+
+import static com.demo.agent.common.Constants.TOKEN_EXPIRE;
+import static com.demo.agent.common.Constants.TOKEN_PREFIX;
 
 @Component
 public class AuthInterceptor implements HandlerInterceptor {
@@ -19,8 +21,6 @@ public class AuthInterceptor implements HandlerInterceptor {
     @Autowired
     private StringRedisTemplate redisTemplate;
 
-    private static final String TOKEN_PREFIX = "auth:token:";
-    private static final Duration TOKEN_EXPIRE = Duration.ofHours(2);
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {

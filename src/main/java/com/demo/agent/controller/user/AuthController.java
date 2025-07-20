@@ -3,7 +3,7 @@ package com.demo.agent.controller.user;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.demo.agent.common.Result;
 import com.demo.agent.service.user.AuthService;
-import com.demo.agent.model.entity.User;
+import com.demo.agent.model.entity.UserEntity;
 import com.demo.agent.mapper.UserMapper;
 import cn.hutool.crypto.digest.BCrypt;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,14 +41,14 @@ public class AuthController {
 
     /** 注册 */
     @PostMapping("/register")
-    public Result<Void> register(@RequestBody User user) {
+    public Result<Void> register(@RequestBody UserEntity userEntity) {
         // 检查用户名是否已存在
-        if (userMapper.selectOne(new QueryWrapper<User>().eq("username", user.getUsername())) != null) {
+        if (userMapper.selectOne(new QueryWrapper<UserEntity>().eq("username", userEntity.getUsername())) != null) {
             return Result.fail("用户名已存在");
         }
         // 密码加密
-        user.setPassword(BCrypt.hashpw(user.getPassword()));
-        userMapper.insert(user);
+        userEntity.setPassword(BCrypt.hashpw(userEntity.getPassword()));
+        userMapper.insert(userEntity);
         return Result.success();
     }
 } 

@@ -21,7 +21,7 @@ spring:
     redis:
       host: 192.168.35.131
       port: 6379
-      database: 5
+      database: 1
       timeout: 3000
       lettuce:
         pool:
@@ -29,6 +29,11 @@ spring:
           max-idle: 8
           min-idle: 0
           max-wait: 1000
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
   ai:
     openai:
       api-key: sk-hebdhedifmonpceqzyncovsvaxnukrugdghnqgrqnozzmkni
