@@ -16,6 +16,8 @@ import org.springframework.amqp.support.AmqpHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
+import java.util.Date;
+
 import static com.demo.agent.common.Constants.QUEUE_NAME;
 
 
@@ -36,18 +38,9 @@ public class MyMessageConsumer {
         try {
             channel.basicAck(deliveryTag, false);
             SessionEntity session = sessionService.getById(message.getId());
-            if(session == null){
-                session = new SessionEntity();
-                session.setId(message.getId());
-                session.setUserId(UserContext.getUserId());
-                session.setContent(message.getContent());
-                session.setAgentId(1L);
-                session.setUserId(1L);
-                sessionService.save(session);
-            }else{
-                session.setContent(message.getContent());
-                sessionService.updateById(session);
-            }
+            session.setContent(message.getContent());
+            session.setUpdatedAt(new Date());
+            sessionService.updateById(session);
         } catch (Exception e) {
             channel.basicNack(deliveryTag, false, false);
 

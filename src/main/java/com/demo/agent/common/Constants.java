@@ -31,8 +31,13 @@ public class Constants {
     public static final String QUEUE_NAME = "message_memory_queue";
 
     /**
-     * 权限校验前缀
+     * 消息记忆前缀
      */
     public static final String MESSAGE_MEMORY_PREFIX = "message:memory:";
+
+    /**
+     * 消息过期时间
+     */
+    public static final Duration MESSAGE_MEMORY_EXPIRE = Duration.ofMinutes(5);
 
 }

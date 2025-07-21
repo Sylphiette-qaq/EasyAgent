@@ -2,6 +2,7 @@ package com.demo.agent.service.agent.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.demo.agent.common.UserContext;
+import com.demo.agent.common.redis.RedisOperation;
 import com.demo.agent.mapper.AgentMapper;
 import com.demo.agent.model.entity.*;
 import com.demo.agent.service.agent.AgentService;
@@ -31,6 +32,8 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 
+import static com.demo.agent.common.Constants.MESSAGE_MEMORY_PREFIX;
+
 @Service
 public class AgentServiceImpl extends ServiceImpl<AgentMapper, AgentEntity> implements AgentService {
 
@@ -47,6 +50,9 @@ public class AgentServiceImpl extends ServiceImpl<AgentMapper, AgentEntity> impl
 
     @Resource
     private McpService mcpService;
+
+    @Resource
+    private RedisOperation redisOperation;
 
     @Override
     public void addAgentByUser(AgentEntity agentEntity) {
@@ -77,20 +83,24 @@ public class AgentServiceImpl extends ServiceImpl<AgentMapper, AgentEntity> impl
     @Override
     public String useAgent(Long agentId, Long sessionId, String userInput) {
 
-        if(sessionService.getById(sessionId) == null){
-            // 新对话
-            SessionEntity session = new SessionEntity();
-            session.setAgentId(agentId);
-            session.setUserId(UserContext.getUserId());
-            session.setId(sessionId);
-            session.setName("新对话");
-            session.setCreateBy(UserContext.getUserId());
-            session.setCreatedAt(LocalDateTime.now());
-            session.setUpdateBy(UserContext.getUserId());
-            session.setUpdatedAt(LocalDateTime.now());
-            sessionService.save(session);
+        String key = MESSAGE_MEMORY_PREFIX + sessionId;
+        // 先判断当前对话id在redis中是否存在
+        if(!redisOperation.exists(key)){
+            // 若不存在，则判断当前对话id在数据库中是否存在
+            if(sessionService.getById(sessionId) == null){
+                // 数据库中也不存在，则创建唯一id的新对话
+                SessionEntity session = new SessionEntity();
+                session.setAgentId(agentId);
+                session.setUserId(UserContext.getUserId());
+                session.setId(sessionId);
+                session.setName("新对话");
+                session.setCreateBy(UserContext.getUserId());
+                session.setCreatedAt(new Date());
+                session.setUpdateBy(UserContext.getUserId());
+                session.setUpdatedAt(new Date());
+                sessionService.save(session);
+            }
         }
-
 
         Long userId = UserContext.getUserId();
         if (assistantMap.getOrDefault(String.valueOf(userId + agentId), null) == null) {

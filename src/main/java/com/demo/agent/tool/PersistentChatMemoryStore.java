@@ -2,6 +2,7 @@ package com.demo.agent.tool;
 
 import com.demo.agent.common.UserContext;
 import com.demo.agent.common.rabbitmq.MyMessageProducer;
+import com.demo.agent.common.redis.RedisOperation;
 import com.demo.agent.mapper.SessionMapper;
 import com.demo.agent.model.base.RabbitMqTransportEntity;
 import com.demo.agent.model.entity.SessionEntity;
@@ -34,17 +35,22 @@ public class PersistentChatMemoryStore implements ChatMemoryStore {
     @Resource
     private MyMessageProducer myMessageProducer;
 
-    @Autowired
-    private StringRedisTemplate redisTemplate;
+    @Resource
+    private RedisOperation redisOperation;
 
 
 
     @Override
     public List<ChatMessage> getMessages(Object memoryId) {
         String key = MESSAGE_MEMORY_PREFIX + memoryId;
-        String content = redisTemplate.opsForValue().get(key);
+        String content = redisOperation.read(key);
         if(content == null){
-            return messagesFromJson("[]");
+            // 如果redis中为空，则在数据库中查找
+            SessionEntity sessionEntity = sessionService.getById((Long)memoryId);
+            if(sessionEntity == null){
+                return messagesFromJson("[]");
+            }
+            return messagesFromJson(sessionEntity.getContent());
         }
         List<ChatMessage> chatMessages = messagesFromJson(content);
         return chatMessages;
@@ -54,24 +60,10 @@ public class PersistentChatMemoryStore implements ChatMemoryStore {
     public void updateMessages(Object memoryId,List<ChatMessage> messages) {
         String content = messagesToJson(messages);
         String key = MESSAGE_MEMORY_PREFIX + memoryId;
-        redisTemplate.opsForValue().set(key,content);
-        RabbitMqTransportEntity message = new RabbitMqTransportEntity();
-        message.setId((Long) memoryId);
-        message.setContent(content);
-        message.setDateTime(new Date());
-        ObjectMapper objectMapper = new ObjectMapper();
-        String messageJson = "";
-        try {
-            messageJson = objectMapper.writeValueAsString(message);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
-        myMessageProducer.sendMessage(EXCHANGE_NAME,ROUTING_KEY,messageJson);
+        redisOperation.write(key,content,MESSAGE_MEMORY_EXPIRE);
     }
 
     @Override
     public void deleteMessages(Object memoryId) {
-        String key = MESSAGE_MEMORY_PREFIX + memoryId;
-        redisTemplate.delete(key);
     }
 }
