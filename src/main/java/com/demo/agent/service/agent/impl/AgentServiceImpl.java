@@ -103,91 +103,9 @@ public class AgentServiceImpl extends ServiceImpl<AgentMapper, AgentEntity> impl
         }
 
         Long userId = UserContext.getUserId();
-        if (assistantMap.getOrDefault(String.valueOf(userId + agentId), null) == null) {
-            // 1.获取Agent
-            AgentEntity agentEntity = getById(agentId);
-            if (agentEntity == null) {
-                throw new RuntimeException("Agent不存在");
-            }
-
-            // 2.获取模型
-            LlmModelEntity llmModelEntity = llmModelService.getById(agentEntity.getLlmModelId());
-            if (llmModelEntity == null) {
-                throw new RuntimeException("模型不存在");
-            }
-
-            // 3.生成模型
-            String apiKey = llmModelEntity.getApiKey();
-            StreamingChatModel model = OpenAiStreamingChatModel.builder()
-                    .baseUrl(llmModelEntity.getApiUrl())
-                    .apiKey(apiKey)
-                    .modelName(llmModelEntity.getName())
-                    .build();
-
-            // 4.获取MCP
-            String mcpIds = agentEntity.getMcpIds();
-            String[] mcpIdArray = mcpIds.split(",");
-
-            // 5.根据mcp的类型组装agent
-
-            List<McpClient> mcpClientList = new ArrayList<>();
-
-            for (String mcpId : mcpIdArray) {
-                long id = Long.parseLong(mcpId);
-                McpEntity mcpEntityById = mcpService.getById(id);
-                if (mcpEntityById == null) {
-                    throw new RuntimeException("MCP不存在");
-                }
-
-                McpServerProperties mcpServerProperties = McpJsonTool.parseJsonToObject(mcpEntityById.getJson());
-
-                // 5.1 stdio连接
-                if (mcpEntityById.getType() == 0) {
-                    List<String> commandList = new ArrayList<>();
-                    commandList.add(mcpServerProperties.getCommand());
-                    commandList.addAll(mcpServerProperties.getArgs());
-                    StdioMcpTransport stdioMcpTransport = new StdioMcpTransport.Builder()
-                            .command(commandList)
-                            .logEvents(true)
-                            .build();
-                    mcpClientList.add(new DefaultMcpClient.Builder()
-                            .key(userId + mcpEntityById.getName())
-                            .transport(stdioMcpTransport)
-                            .build());
-                }
-
-                // 5.2 sse连接
-                if (mcpEntityById.getType() == 1) {
-                    HttpMcpTransport httpMcpTransport = new HttpMcpTransport.Builder()
-                            .sseUrl(mcpServerProperties.getUrl())
-                            .build();
-                    mcpClientList.add(new DefaultMcpClient.Builder()
-                            .key(userId + mcpEntityById.getName())
-                            .transport(httpMcpTransport)
-                            .build());
-                }
-
-
-            }
-
-            ChatMemoryProvider chatMemoryProvider = memoryId -> MessageWindowChatMemory.builder()
-                    .id(memoryId)
-                    .maxMessages(10)
-                    .chatMemoryStore(persistentChatMemoryStore)
-                    .build();
-
-
-            McpToolProvider toolProvider = McpToolProvider.builder()
-                    .mcpClients(mcpClientList)
-                    .build();
-
-            AssistantStream assistant = AiServices.builder(AssistantStream.class)
-                    .streamingChatModel(model)
-                    .toolProvider(toolProvider)
-                    .chatMemoryProvider(chatMemoryProvider)
-                    .build();
-
-            assistantMap.put(String.valueOf(userId + agentId), assistant);
+        if (assistantMap.getOrDefault(String.valueOf(userId + agentId), null) == null ) {
+            AssistantStream assistantStream = creatAgent(agentId, userId);
+            assistantMap.put(String.valueOf(userId + agentId), assistantStream);
         }
 
         AssistantStream assistantStream = assistantMap.getOrDefault(String.valueOf(userId + agentId), null);
@@ -220,5 +138,105 @@ public class AgentServiceImpl extends ServiceImpl<AgentMapper, AgentEntity> impl
         }
 
         return finalContent[0];
+    }
+
+    /**
+     * 切换MCP工具
+     * @param agentId
+     */
+    @Override
+    public void changeMcpTool(Long agentId) {
+        // 当mcp工具修改后，需要重新构建mcp
+        assistantMap.remove(String.valueOf(UserContext.getUserId() + agentId));
+        AssistantStream assistantStream = creatAgent(agentId, UserContext.getUserId());
+        assistantMap.put(String.valueOf(UserContext.getUserId() + agentId),assistantStream);
+    }
+
+    public AssistantStream creatAgent(Long agentId,Long userId){
+        // 1.获取Agent
+        AgentEntity agentEntity = getById(agentId);
+        if (agentEntity == null) {
+            throw new RuntimeException("Agent不存在");
+        }
+
+        // 2.获取模型
+        LlmModelEntity llmModelEntity = llmModelService.getById(agentEntity.getLlmModelId());
+        if (llmModelEntity == null) {
+            throw new RuntimeException("模型不存在");
+        }
+
+        // 3.生成模型
+        String apiKey = llmModelEntity.getApiKey();
+        StreamingChatModel model = OpenAiStreamingChatModel.builder()
+                .baseUrl(llmModelEntity.getApiUrl())
+                .apiKey(apiKey)
+                .modelName(llmModelEntity.getName())
+                .build();
+
+        // 4.获取MCP
+        String mcpIds = agentEntity.getMcpIds();
+        String[] mcpIdArray = mcpIds.split(",");
+
+        // 5.根据mcp的类型组装agent
+
+        List<McpClient> mcpClientList = new ArrayList<>();
+
+        for (String mcpId : mcpIdArray) {
+            if(mcpId.isEmpty()) continue;
+            long id = Long.parseLong(mcpId);
+            McpEntity mcpEntityById = mcpService.getById(id);
+            if (mcpEntityById == null) {
+                throw new RuntimeException("MCP不存在");
+            }
+
+            McpServerProperties mcpServerProperties = McpJsonTool.parseJsonToObject(mcpEntityById.getJson());
+
+            // 5.1 stdio连接
+            if (mcpEntityById.getType() == 0) {
+                List<String> commandList = new ArrayList<>();
+                commandList.add(mcpServerProperties.getCommand());
+                commandList.addAll(mcpServerProperties.getArgs());
+                StdioMcpTransport stdioMcpTransport = new StdioMcpTransport.Builder()
+                        .command(commandList)
+                        .logEvents(true)
+                        .build();
+                mcpClientList.add(new DefaultMcpClient.Builder()
+                        .key(userId + mcpEntityById.getName())
+                        .transport(stdioMcpTransport)
+                        .build());
+            }
+
+            // 5.2 sse连接
+            if (mcpEntityById.getType() == 1) {
+                HttpMcpTransport httpMcpTransport = new HttpMcpTransport.Builder()
+                        .sseUrl(mcpServerProperties.getUrl())
+                        .build();
+                mcpClientList.add(new DefaultMcpClient.Builder()
+                        .key(userId + mcpEntityById.getName())
+                        .transport(httpMcpTransport)
+                        .build());
+            }
+
+
+        }
+
+        ChatMemoryProvider chatMemoryProvider = memoryId -> MessageWindowChatMemory.builder()
+                .id(memoryId)
+                .maxMessages(10)
+                .chatMemoryStore(persistentChatMemoryStore)
+                .build();
+
+
+        McpToolProvider toolProvider = McpToolProvider.builder()
+                .mcpClients(mcpClientList)
+                .build();
+
+        AssistantStream assistant = AiServices.builder(AssistantStream.class)
+                .streamingChatModel(model)
+                .toolProvider(toolProvider)
+                .chatMemoryProvider(chatMemoryProvider)
+                .build();
+
+        return assistant;
     }
 }

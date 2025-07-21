@@ -38,6 +38,17 @@ public class AgentController {
         return Result.success(s);
     }
 
+    /** 更改agent所拥有的mcp工具列表 */
+    @PostMapping("/changeMcpTool")
+    public Result<String> add(@RequestParam("agentId") Long agentId, @RequestParam("mcpTools") String mcpTools) {
+        AgentEntity agentEntity = agentService.getById(agentId);
+        agentEntity.setMcpIds(mcpTools);
+        agentService.updateById(agentEntity);
+        agentService.changeMcpTool(agentId);
+        return Result.success();
+    }
+
+
     /** 分页展示用户已有的agent */
     @PostMapping("/getUserAgent")
     public Result<IPage<AgentResponse>> getUserAgent(@RequestBody AgentRequest query) {

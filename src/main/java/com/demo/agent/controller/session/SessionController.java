@@ -5,15 +5,19 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.demo.agent.common.Result;
 import com.demo.agent.common.UserContext;
+import com.demo.agent.common.redis.RedisOperation;
 import com.demo.agent.model.entity.SessionEntity;
 import com.demo.agent.model.request.SessionRequest;
 import com.demo.agent.model.response.SessionResponse;
 import com.demo.agent.service.session.SessionService;
+import jakarta.annotation.Resource;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+
+import static com.demo.agent.common.Constants.MESSAGE_MEMORY_PREFIX;
 
 
 @RestController
@@ -22,6 +26,9 @@ public class SessionController {
     @Autowired
     private SessionService sessionService;
 
+    @Resource
+    private RedisOperation redisOperation;
+
     /** 新增会话 */
     @PostMapping
     public Result<Long> createSession(@RequestBody SessionRequest request) {
@@ -29,6 +36,25 @@ public class SessionController {
         BeanUtils.copyProperties(request, entity);
         sessionService.save(entity);
         return Result.success(entity.getId());
+    }
+
+    /** 根据ID查询当前会话的上下文 */
+    @GetMapping("/content/{id}")
+    public Result<String> getContentById(@PathVariable("id") Long id) {
+        String key = MESSAGE_MEMORY_PREFIX + id;
+        // 先去redis中查询
+        String content = redisOperation.read(key);
+        if(content != null) {
+            return Result.success(content);
+        }
+        else {
+            // redis中为空再去数据库中查询
+            SessionEntity entity = sessionService.getById(id);
+            if (entity == null) return Result.success(null);
+            SessionResponse resp = new SessionResponse();
+            BeanUtils.copyProperties(entity, resp);
+            return Result.success(resp.getContent());
+        }
     }
 
     /** 分页条件查询 */

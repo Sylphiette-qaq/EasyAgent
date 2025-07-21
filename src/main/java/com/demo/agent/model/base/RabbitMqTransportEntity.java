@@ -1,6 +1,7 @@
 package com.demo.agent.model.base;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -10,6 +11,7 @@ import java.util.Date;
  * 消息队列传输实体
  */
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class RabbitMqTransportEntity {
 
     /**

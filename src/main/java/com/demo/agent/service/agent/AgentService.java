@@ -19,4 +19,5 @@ public interface AgentService extends IService<AgentEntity> {
      */
     public String useAgent(Long agentId,Long sessionId,String userInput);
 
+    void changeMcpTool(Long agentId);
 }

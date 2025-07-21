@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.demo.agent.common.Result;
+import com.demo.agent.common.UserContext;
 import com.demo.agent.model.entity.McpEntity;
 import com.demo.agent.model.entity.McpToolConfig;
 import com.demo.agent.model.request.McpRequest;
@@ -12,6 +13,8 @@ import com.demo.agent.service.mcp.McpService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/mcp")
@@ -30,6 +33,21 @@ public class McpController {
             return Result.fail(e.getMessage());
         }
     }
+
+    /** 根据用户id查询已有的MCP */
+    @GetMapping("/userMcp")
+    public Result<List<McpResponse>> getUserMcp() {
+        LambdaQueryWrapper<McpEntity> wrapper = new LambdaQueryWrapper<>();
+        wrapper.like(McpEntity::getUserId, UserContext.getUserId());
+        List<McpEntity> list = mcpService.list(wrapper);
+        List<McpResponse> respList = list.stream().map(m -> {
+            McpResponse resp = new McpResponse();
+            BeanUtils.copyProperties(m, resp);
+            return resp;
+        }).toList();
+        return Result.success(respList);
+    }
+
 
 
     /** 分页条件查询 */
