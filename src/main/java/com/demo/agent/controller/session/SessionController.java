@@ -90,12 +90,13 @@ public class SessionController {
     }
 
     /** 查询全部对话 */
-    @GetMapping
-    public Result<List<SessionEntity>> getAllSession() {
+    @GetMapping("/getAgentSession/{agentId}")
+    public Result<List<SessionEntity>> getAllSession(@PathVariable Long agentId) {
         LambdaQueryWrapper<SessionEntity> wrapper = new LambdaQueryWrapper<>();
         Long userId = UserContext.getUserId();
         wrapper.eq(SessionEntity::getUserId, userId);
-        // 按创建时间升序排序，假设 SessionEntity 有 createTime 字段
+        wrapper.eq(SessionEntity::getAgentId, agentId);
+        // 按创建时间升序排序
         wrapper.orderByDesc(SessionEntity::getCreatedAt);
         List<SessionEntity> list = sessionService.list(wrapper);
         return Result.success(list);

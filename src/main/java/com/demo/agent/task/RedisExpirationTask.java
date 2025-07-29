@@ -66,12 +66,7 @@ public class RedisExpirationTask {
                 log.debug("未找到任何消息内存键");
                 return;
             }
-
-            int processedCount = 0;
-            int persistedCount = 0;
-
             for (String key : keys) {
-                try {
                     // 获取键的剩余过期时间
                     Long ttl = redisTemplate.getExpire(key, TimeUnit.SECONDS);
 
@@ -82,25 +77,9 @@ public class RedisExpirationTask {
 
                     // 如果剩余时间小于阈值，触发持久化
                     if (ttl <= expirationProperties.getThresholdSeconds()) {
-                        boolean persisted = persistKeyToDatabase(key);
-                        if (persisted) {
-                            persistedCount++;
-                        }
+                        persistKeyToDatabase(key);
                     }
-
-                    processedCount++;
-
-                } catch (Exception e) {
-                    log.error("处理键 {} 时发生错误: {}", key, e.getMessage(), e);
-                }
             }
-
-            if (persistedCount > 0) {
-                log.info("扫描完成，处理了 {} 个键，持久化了 {} 个即将过期的键", processedCount, persistedCount);
-            } else {
-                log.debug("扫描完成，处理了 {} 个键，无需持久化", processedCount);
-            }
-
         } catch (Exception e) {
             log.error("扫描即将过期的Redis键时发生错误: {}", e.getMessage(), e);
         }
@@ -112,27 +91,17 @@ public class RedisExpirationTask {
      * @param key Redis键
      * @return 是否成功持久化
      */
-    private boolean persistKeyToDatabase(String key) {
+    private void persistKeyToDatabase(String key) {
         try {
             // 从键中提取sessionId
             String sessionIdStr = key.replace(MESSAGE_MEMORY_PREFIX, "");
             Long sessionId = Long.parseLong(sessionIdStr);
-
+            log.debug("即将持久化的键 {} ", key);
             // 从Redis获取内容
             String content = redisOperation.read(key);
             if (content == null || content.trim().isEmpty()) {
                 log.warn("键 {} 的内容为空，跳过持久化", key);
-                return false;
             }
-
-            // 检查数据库中是否已存在该会话
-            SessionEntity existingSession = sessionService.getById(sessionId);
-
-            if (existingSession == null) {
-                log.warn("会话 {} 在数据库中不存在，跳过持久化", sessionId);
-                return false;
-            }
-
             RabbitMqTransportEntity rabbitMqTransportEntity = new RabbitMqTransportEntity();
             rabbitMqTransportEntity.setId(sessionId);
             rabbitMqTransportEntity.setContent(content);
@@ -140,29 +109,17 @@ public class RedisExpirationTask {
             ObjectMapper objectMapper = new ObjectMapper();
             String messageJson = "";
             try {
-                messageJson = objectMapper.writeValueAsString(existingSession);
+                messageJson = objectMapper.writeValueAsString(rabbitMqTransportEntity);
             } catch (JsonProcessingException e) {
                 throw new RuntimeException(e);
             }
             myMessageProducer.sendMessage(EXCHANGE_NAME, ROUTING_KEY, messageJson);
 
-            // 更新数据库记录
-            boolean updated = sessionService.updateById(existingSession);
-
-            if (updated) {
-                log.info("成功将会话 {} 的内容持久化到数据库", sessionId);
-                return true;
-            } else {
-                log.warn("持久化会话 {} 到数据库失败", sessionId);
-                return false;
-            }
 
         } catch (NumberFormatException e) {
             log.error("无法解析会话ID，键: {}", key);
-            return false;
         } catch (Exception e) {
             log.error("持久化键 {} 到数据库时发生错误: {}", key, e.getMessage(), e);
-            return false;
         }
     }
 }

@@ -34,14 +34,7 @@ spring:
     port: 5672
     username: guest
     password: guest
-  ai:
-    openai:
-      api-key: sk-hebdhedifmonpceqzyncovsvaxnukrugdghnqgrqnozzmkni
-      base-url: https://api.siliconflow.cn/
-      chat:
-        options:
-          model: Qwen/QwQ-32B
-        completions-path: /v1/chat/completions
+
 # Redis过期监控配置
 redis:
   expiration:
@@ -53,4 +46,11 @@ logging:
   level:
     io.lettuce.core.protocol.ConnectionWatchdog: warn
     io.lettuce.core.protocol.ReconnectionHandler: warn
+    dev:
+      langchain4j: DEBUG
+langchain4j:
+  open-ai:
+    chat-model:
+      log-requests: true
+      log-responses: true
 

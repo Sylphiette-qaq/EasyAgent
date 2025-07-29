@@ -31,7 +31,6 @@ public class PersistentChatMemoryStore implements ChatMemoryStore {
     @Resource
     private SessionService sessionService;
 
-
     @Resource
     private MyMessageProducer myMessageProducer;
 

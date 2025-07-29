@@ -8,4 +8,11 @@ import org.springframework.stereotype.Service;
 @Service
 public interface McpService extends IService<McpEntity> {
     void registerMcp(McpToolConfig config);
+    
+    /**
+     * 校验SSE连接的可用性
+     * @param config MCP工具配置
+     * @throws RuntimeException 当连接不可用时抛出异常
+     */
+    void validateSseConnections(McpToolConfig config);
 }

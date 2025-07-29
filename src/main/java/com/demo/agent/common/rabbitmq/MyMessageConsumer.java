@@ -37,10 +37,15 @@ public class MyMessageConsumer {
         log.info("receiveMessage message = {}", message);
         try {
             channel.basicAck(deliveryTag, false);
-            SessionEntity session = sessionService.getById(message.getId());
+            SessionEntity session = new SessionEntity();
             session.setContent(message.getContent());
             session.setUpdatedAt(new Date());
-            sessionService.updateById(session);
+            if(sessionService.getById(message.getId()) != null){
+                session.setId(message.getId());
+                sessionService.updateById(session);
+            }else{
+                sessionService.save(session);
+            }
         } catch (Exception e) {
             channel.basicNack(deliveryTag, false, false);
 

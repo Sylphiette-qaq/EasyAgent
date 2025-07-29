@@ -2,6 +2,7 @@ package com.demo.agent.service.agent;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.demo.agent.model.entity.AgentEntity;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 public interface AgentService extends IService<AgentEntity> {
 
@@ -19,5 +20,14 @@ public interface AgentService extends IService<AgentEntity> {
      */
     public String useAgent(Long agentId,Long sessionId,String userInput);
 
-    void changeMcpTool(Long agentId);
+    /**
+     * 调用Agent - 流式输出
+     * @param agentId Agent ID
+     * @param sessionId 会话ID
+     * @param userInput 用户输入
+     * @param emitter SSE发射器
+     */
+    public void useAgentStream(Long agentId, Long sessionId, String userInput, SseEmitter emitter);
+
+    void changeAgent(Long agentId);
 }

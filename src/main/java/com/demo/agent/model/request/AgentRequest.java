@@ -32,6 +32,10 @@ public class AgentRequest extends BaseEntity {
     @Size(max = 255, message = "描述不能超过255字符")
     private String description;
 
+    /** 系统消息 */
+    @Size(max = 1000, message = "系统消息不能超过1000字符")
+    private String systemMessage;
+
     /** 状态 */
     @Size(max = 20, message = "状态不能超过20字符")
     private String status;

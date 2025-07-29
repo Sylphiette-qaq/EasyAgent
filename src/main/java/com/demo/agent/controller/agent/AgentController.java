@@ -9,15 +9,30 @@ import com.demo.agent.model.entity.AgentEntity;
 import com.demo.agent.model.request.AgentRequest;
 import com.demo.agent.model.response.AgentResponse;
 import com.demo.agent.service.agent.AgentService;
+import com.demo.agent.model.entity.LlmModelEntity;
+import com.demo.agent.model.entity.McpEntity;
+import com.demo.agent.service.ai.LlmModelService;
+import com.demo.agent.service.mcp.McpService;
+import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.MediaType;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
 @RequestMapping("/agent")
 public class AgentController {
     @Autowired
     private AgentService agentService;
+    
+    @Autowired
+    private LlmModelService llmModelService;
+    
+    @Autowired
+    private McpService mcpService;
 
     /** 新增 */
     @PostMapping
@@ -38,13 +53,41 @@ public class AgentController {
         return Result.success(s);
     }
 
+    /** 使用agent - 流式输出 */
+    @GetMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter chatStream(@RequestParam("agentId") Long agentId,
+                                @RequestParam("userInput") String userInput,
+                                @RequestParam(value = "sessionId") Long sessionId) {
+        SseEmitter emitter = new SseEmitter(300000L); // 5分钟超时
+        
+        try {
+            agentService.useAgentStream(agentId, sessionId, userInput, emitter);
+        } catch (Exception e) {
+            try {
+                emitter.completeWithError(e);
+            } catch (Exception ignored) {}
+        }
+        
+        return emitter;
+    }
+
     /** 更改agent所拥有的mcp工具列表 */
     @PostMapping("/changeMcpTool")
     public Result<String> add(@RequestParam("agentId") Long agentId, @RequestParam("mcpTools") String mcpTools) {
         AgentEntity agentEntity = agentService.getById(agentId);
         agentEntity.setMcpIds(mcpTools);
         agentService.updateById(agentEntity);
-        agentService.changeMcpTool(agentId);
+        agentService.changeAgent(agentId);
+        return Result.success();
+    }
+
+    /** 更改agent的大语言模型 */
+    @PostMapping("/changeLlmModel")
+    public Result<String> changeLlmModel(@RequestParam("agentId") Long agentId, @RequestParam("llmModelId") String llmModelId) {
+        AgentEntity agentEntity = agentService.getById(agentId);
+        agentEntity.setLlmModelId(llmModelId);
+        agentService.updateById(agentEntity);
+        agentService.changeAgent(agentId);
         return Result.success();
     }
 
@@ -120,4 +163,26 @@ public class AgentController {
     public Result<Boolean> delete(@PathVariable Long id) {
         return Result.success(agentService.removeById(id));
     }
-} 
+
+    /** 获取创建Agent的选项（模型和MCP工具） */
+    @GetMapping("/createOptions")
+    public Result<Map<String, Object>> getCreateOptions() {
+        Long userId = UserContext.getUserId();
+        
+        // 获取用户的模型列表
+        LambdaQueryWrapper<LlmModelEntity> modelWrapper = new LambdaQueryWrapper<>();
+        modelWrapper.eq(LlmModelEntity::getUserId, userId);
+        List<LlmModelEntity> modelList = llmModelService.list(modelWrapper);
+        
+        // 获取用户的MCP工具列表
+        LambdaQueryWrapper<McpEntity> mcpWrapper = new LambdaQueryWrapper<>();
+        mcpWrapper.eq(McpEntity::getUserId, userId);
+        List<McpEntity> mcpList = mcpService.list(mcpWrapper);
+        
+        Map<String, Object> options = new HashMap<>();
+        options.put("models", modelList);
+        options.put("mcpTools", mcpList);
+        
+        return Result.success(options);
+    }
+}

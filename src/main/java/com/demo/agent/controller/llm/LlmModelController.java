@@ -13,6 +13,8 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/llmModel")
 public class LlmModelController {
@@ -34,6 +36,25 @@ public class LlmModelController {
         LlmModelResponse resp = new LlmModelResponse();
         BeanUtils.copyProperties(model, resp);
         return Result.success(resp);
+    }
+
+    /**
+     * 查询用户拥有的大语言模型
+     * @param
+     * @return
+     */
+    @GetMapping("/userLlmModel")
+    public Result<List<LlmModelResponse>> getUserLlmModel() {
+        Long userId = UserContext.getUserId();
+        LambdaQueryWrapper<LlmModelEntity> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(LlmModelEntity::getUserId, userId);
+        List<LlmModelEntity> modelList = llmModelService.list(wrapper);
+        List<LlmModelResponse> respList = modelList.stream().map(model -> {
+            LlmModelResponse resp = new LlmModelResponse();
+            BeanUtils.copyProperties(model, resp);
+            return resp;
+        }).toList();
+        return Result.success(respList);
     }
 
     /** 分页条件查询 */

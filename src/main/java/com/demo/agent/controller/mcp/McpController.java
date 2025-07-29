@@ -22,11 +22,39 @@ public class McpController {
     @Autowired
     private McpService mcpService;
 
+    /**
+     * 用户仅支持上传sse形式的MCP
+     * @param config
+     * @return
+     */
     @PostMapping("/upload")
     public Result<Long> uploadMcpJson(@RequestBody McpToolConfig config) {
         try {
-            // TODO: 校验 & 注册
+            // 校验 & 注册
             System.out.println("收到 MCP 工具：" + config.getMcpServers().keySet());
+            
+            // 校验SSE连接的可用性
+            mcpService.validateSseConnections(config);
+            
+            mcpService.registerMcp(config);
+            return Result.success();
+        } catch (Exception e) {
+            return Result.fail(e.getMessage());
+        }
+    }
+
+
+    /**
+     * 管理员可上传stdio形式的MCP
+     * @param config
+     * @return
+     */
+    @PostMapping("/uploadAdmin")
+    public Result<Long> uploadAdminMcpJson(@RequestBody McpToolConfig config) {
+        try {
+            // 校验 & 注册
+            System.out.println("收到 MCP 工具：" + config.getMcpServers().keySet());
+
             mcpService.registerMcp(config);
             return Result.success();
         } catch (Exception e) {
@@ -97,4 +125,4 @@ public class McpController {
     public Result<Boolean> delete(@PathVariable Long id) {
         return Result.success(mcpService.removeById(id));
     }
-} 
+}
