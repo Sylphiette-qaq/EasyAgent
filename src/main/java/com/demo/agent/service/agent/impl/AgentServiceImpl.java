@@ -5,16 +5,21 @@ import com.demo.agent.common.UserContext;
 import com.demo.agent.common.redis.RedisOperation;
 import com.demo.agent.mapper.AgentMapper;
 import com.demo.agent.model.entity.*;
+import com.demo.agent.model.entity.FileInfoEntity;
 import com.demo.agent.service.agent.AgentService;
 import com.demo.agent.service.ai.AssistantStream;
 import com.demo.agent.service.ai.LlmModelService;
+import com.demo.agent.service.fileinfo.FileInfoService;
 import com.demo.agent.service.mcp.McpService;
 import com.demo.agent.service.session.SessionService;
 import com.demo.agent.tool.McpJsonTool;
 import com.demo.agent.tool.PersistentChatMemoryStore;
-import com.demo.agent.tool.TimeBasedIdGenerator;
 import dev.langchain4j.data.document.Document;
-import dev.langchain4j.data.document.loader.FileSystemDocumentLoader;
+import dev.langchain4j.data.document.DocumentParser;
+import dev.langchain4j.data.document.DocumentSplitter;
+import dev.langchain4j.data.document.parser.TextDocumentParser;
+import dev.langchain4j.data.document.splitter.DocumentSplitters;
+import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.mcp.McpToolProvider;
 import dev.langchain4j.mcp.client.DefaultMcpClient;
@@ -24,17 +29,21 @@ import dev.langchain4j.mcp.client.transport.stdio.StdioMcpTransport;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.StreamingChatModel;
+import dev.langchain4j.model.embedding.EmbeddingModel;
+import dev.langchain4j.model.embedding.onnx.bgesmallenv15q.BgeSmallEnV15QuantizedEmbeddingModel;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.rag.content.retriever.ContentRetriever;
 import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.TokenStream;
+import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.EmbeddingStoreIngestor;
 import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
@@ -43,6 +52,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 
 import static com.demo.agent.common.Constants.MESSAGE_MEMORY_PREFIX;
+import static dev.langchain4j.data.document.loader.FileSystemDocumentLoader.loadDocument;
 import static dev.langchain4j.data.document.loader.FileSystemDocumentLoader.loadDocuments;
 
 
@@ -62,6 +72,9 @@ public class AgentServiceImpl extends ServiceImpl<AgentMapper, AgentEntity> impl
 
     @Resource
     private McpService mcpService;
+
+    @Resource
+    private FileInfoService fileInfoService;
 
     @Resource
     private RedisOperation redisOperation;
@@ -230,6 +243,13 @@ public class AgentServiceImpl extends ServiceImpl<AgentMapper, AgentEntity> impl
         assistantMap.put(String.valueOf(UserContext.getUserId() + agentId), assistantStream);
     }
 
+    /**
+     * 重新构建agent
+     *
+     * @param agentId
+     * @param userId
+     * @return
+     */
     public AssistantStream creatAgent(Long agentId, Long userId) {
         // 1.获取Agent
         AgentEntity agentEntity = getById(agentId);
@@ -251,55 +271,11 @@ public class AgentServiceImpl extends ServiceImpl<AgentMapper, AgentEntity> impl
                 .modelName(llmModelEntity.getName())
                 .build();
 
-        // 4.获取MCP
-        String mcpIds = agentEntity.getMcpIds();
-        String[] mcpIdArray = mcpIds.split(",");
-
-        // 5.根据mcp的类型组装agent
-
-        List<McpClient> mcpClientList = new ArrayList<>();
-
-        for (String mcpId : mcpIdArray) {
-            if (mcpId.isEmpty()) continue;
-            long id = Long.parseLong(mcpId);
-            McpEntity mcpEntityById = mcpService.getById(id);
-            if (mcpEntityById == null) {
-                throw new RuntimeException("MCP不存在");
-            }
-
-            McpServerProperties mcpServerProperties = McpJsonTool.parseJsonToObject(mcpEntityById.getJson());
-
-            // 5.1 stdio连接
-            if (mcpEntityById.getType() == 0) {
-                List<String> commandList = new ArrayList<>();
-                String command = mcpServerProperties.getCommand();
-                if(command.equals("npx")){
-                    // 替换为系统npx命令路径
-                    command = "C:\\Program Files\\nodejs\\npx.cmd";
-                }
-                commandList.add(command);
-                commandList.addAll(mcpServerProperties.getArgs());
-                StdioMcpTransport stdioMcpTransport = new StdioMcpTransport.Builder()
-                        .command(commandList)
-                        .logEvents(true)
-                        .build();
-                mcpClientList.add(new DefaultMcpClient.Builder()
-                        .key(userId + mcpEntityById.getName())
-                        .transport(stdioMcpTransport)
-                        .build());
-            }
-
-            // 5.2 sse连接
-            if (mcpEntityById.getType() == 1) {
-                HttpMcpTransport httpMcpTransport = new HttpMcpTransport.Builder()
-                        .sseUrl(mcpServerProperties.getUrl())
-                        .build();
-                mcpClientList.add(new DefaultMcpClient.Builder()
-                        .key(userId + mcpEntityById.getName())
-                        .transport(httpMcpTransport)
-                        .build());
-            }
-        }
+        // 4.获取MCP并组装
+        List<McpClient> mcpClientList = buildMcpClients(agentEntity.getMcpIds(), userId);
+        McpToolProvider toolProvider = McpToolProvider.builder()
+                .mcpClients(mcpClientList)
+                .build();
 
         ChatMemoryProvider chatMemoryProvider = memoryId -> MessageWindowChatMemory.builder()
                 .id(memoryId)
@@ -307,10 +283,11 @@ public class AgentServiceImpl extends ServiceImpl<AgentMapper, AgentEntity> impl
                 .chatMemoryStore(persistentChatMemoryStore)
                 .build();
 
-        McpToolProvider toolProvider = McpToolProvider.builder()
-                .mcpClients(mcpClientList)
-                .build();
+        // 5.RAG
+        String uploadDir = "D:/java-project/EasyAgent/EasyAgent-backend/uploads/agent_" + agentId;
+        ContentRetriever contentRetriever = createContentRetriever(uploadDir);
 
+        // 6.获取系统提示词
         String systemMessage;
         if (getById(agentId).getSystemMessage() != null) {
             systemMessage = getById(agentId).getSystemMessage();
@@ -318,36 +295,134 @@ public class AgentServiceImpl extends ServiceImpl<AgentMapper, AgentEntity> impl
             systemMessage = "";
         }
 
-        List<Document> documents = FileSystemDocumentLoader.loadDocuments("D:/java-project/EasyAgent/EasyAgent-backend/rag");
 
+        // 使用Builder模式动态构建AssistantStream
+        AiServices<AssistantStream> builder = AiServices.builder(AssistantStream.class)
+                .streamingChatModel(model)
+                .toolProvider(toolProvider)
+                .chatMemoryProvider(chatMemoryProvider);
 
         // 只有当systemMessage不为空时才设置systemMessageProvider
         if (systemMessage != null && !systemMessage.trim().isEmpty()) {
-            AssistantStream assistant = AiServices.builder(AssistantStream.class)
-                    .streamingChatModel(model)
-                    .toolProvider(toolProvider)
-                    .systemMessageProvider(chatMemoryId -> systemMessage)
-                    .chatMemoryProvider(chatMemoryProvider)
-                    .contentRetriever(createContentRetriever(documents))
-                    .build();
-            return assistant;
-        } else {
-            AssistantStream assistant = AiServices.builder(AssistantStream.class)
-                    .streamingChatModel(model)
-                    .toolProvider(toolProvider)
-                    .chatMemoryProvider(chatMemoryProvider)
-                    .contentRetriever(createContentRetriever(documents))
-                    .build();
-            return assistant;
+            builder.systemMessageProvider(chatMemoryId -> systemMessage);
         }
+        if(contentRetriever!=null){
+            builder.contentRetriever(contentRetriever);
+        }
+
+        return builder.build();
     }
 
-    private static ContentRetriever createContentRetriever(List<Document> documents) {
+    /**
+     * 构建MCP客户端列表
+     *
+     * @param mcpIds MCP ID字符串，用逗号分隔
+     * @param userId 用户ID
+     * @return MCP客户端列表
+     */
+    private List<McpClient> buildMcpClients(String mcpIds, Long userId) {
+        List<McpClient> mcpClientList = new ArrayList<>();
 
-        InMemoryEmbeddingStore<TextSegment> embeddingStore = new InMemoryEmbeddingStore<>();
+        if (mcpIds == null || mcpIds.trim().isEmpty()) {
+            return mcpClientList;
+        }
 
-        EmbeddingStoreIngestor.ingest(documents, embeddingStore);
+        String[] mcpIdArray = mcpIds.split(",");
 
-        return EmbeddingStoreContentRetriever.from(embeddingStore);
+        for (String mcpId : mcpIdArray) {
+            if (mcpId.trim().isEmpty()) continue;
+
+            long id = Long.parseLong(mcpId.trim());
+            McpEntity mcpEntityById = mcpService.getById(id);
+            if (mcpEntityById == null) {
+                throw new RuntimeException("MCP不存在: " + id);
+            }
+
+            McpServerProperties mcpServerProperties = McpJsonTool.parseJsonToObject(mcpEntityById.getJson());
+
+            // stdio连接
+            if (mcpEntityById.getType() == 0) {
+                List<String> commandList = new ArrayList<>();
+                String command = mcpServerProperties.getCommand();
+                if ("npx".equals(command)) {
+                    // 替换为系统npx命令路径
+                    command = "C:\\Program Files\\nodejs\\npx.cmd";
+                }
+                commandList.add(command);
+                commandList.addAll(mcpServerProperties.getArgs());
+
+                StdioMcpTransport stdioMcpTransport = new StdioMcpTransport.Builder()
+                        .command(commandList)
+                        .logEvents(true)
+                        .build();
+
+                mcpClientList.add(new DefaultMcpClient.Builder()
+                        .key(userId + mcpEntityById.getName())
+                        .transport(stdioMcpTransport)
+                        .build());
+            }
+
+            // sse连接
+            if (mcpEntityById.getType() == 1) {
+                HttpMcpTransport httpMcpTransport = new HttpMcpTransport.Builder()
+                        .sseUrl(mcpServerProperties.getUrl())
+                        .build();
+
+                mcpClientList.add(new DefaultMcpClient.Builder()
+                        .key(userId + mcpEntityById.getName())
+                        .transport(httpMcpTransport)
+                        .build());
+            }
+        }
+
+        return mcpClientList;
     }
+
+
+    /**
+     * 构建检索生成器
+     * @param filesDir
+     * @return
+     */
+    public ContentRetriever createContentRetriever(String filesDir) {
+        // 检查目录是否存在且为有效目录
+        File dir = new File(filesDir);
+        if (!dir.exists() || !dir.isDirectory()) {
+            return null;
+        }
+
+        DocumentParser documentParser = new TextDocumentParser();
+        List<Document> documents;
+        try {
+            documents = loadDocuments(filesDir, documentParser);
+        } catch (Exception e) {
+            // 处理文件加载异常（如权限问题）
+            return null;
+        }
+
+        // 检查是否有文档被加载
+        if (documents == null || documents.isEmpty()) {
+            return null;
+        }
+
+        DocumentSplitter splitter = DocumentSplitters.recursive(300, 0);
+        List<TextSegment> segments = splitter.splitAll(documents);
+
+
+        EmbeddingModel embeddingModel = new BgeSmallEnV15QuantizedEmbeddingModel();
+        List<Embedding> embeddings = embeddingModel.embedAll(segments).content();
+
+
+        EmbeddingStore<TextSegment> embeddingStore = new InMemoryEmbeddingStore<>();
+        embeddingStore.addAll(embeddings, segments);
+
+
+        return EmbeddingStoreContentRetriever.builder()
+                .embeddingStore(embeddingStore)
+                .embeddingModel(embeddingModel)
+                .maxResults(2)
+                .minScore(0.5)
+                .build();
+    }
+
 }

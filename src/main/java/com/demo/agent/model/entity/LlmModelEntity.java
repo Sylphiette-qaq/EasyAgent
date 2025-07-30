@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.annotation.TableField;
+import com.demo.agent.annotation.CustomId;
 import lombok.Data;
 import com.demo.agent.model.base.BaseEntity;
 import jakarta.validation.constraints.NotBlank;
@@ -17,6 +18,7 @@ import jakarta.validation.constraints.Size;
 public class LlmModelEntity extends BaseEntity {
     /** 主键ID */
     @TableId(type = IdType.ASSIGN_ID)
+    @CustomId(length = 16)
     private Long id;
 
     /** 模型名称（如Qwen/QwQ-32B） */
@@ -47,4 +49,4 @@ public class LlmModelEntity extends BaseEntity {
     /** 模型描述 */
     @Size(max = 255, message = "模型描述不能超过255字符")
     private String description;
-} 
+}

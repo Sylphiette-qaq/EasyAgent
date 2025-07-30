@@ -83,12 +83,23 @@ public class AgentController {
 
     /** 更改agent的大语言模型 */
     @PostMapping("/changeLlmModel")
-    public Result<String> changeLlmModel(@RequestParam("agentId") Long agentId, @RequestParam("llmModelId") String llmModelId) {
+    public Result<String> changeLlmModel(@RequestParam("agentId") Long agentId, @RequestParam("llmModelId") Long llmModelId) {
         AgentEntity agentEntity = agentService.getById(agentId);
         agentEntity.setLlmModelId(llmModelId);
         agentService.updateById(agentEntity);
         agentService.changeAgent(agentId);
         return Result.success();
+    }
+
+    /** 更改agent的文件列表 */
+    @PostMapping("/changeFile")
+    public Result<String> changeFile(
+            @RequestParam("agentId") Long agentId, @RequestParam("fileIds") String fileIds) {
+        AgentEntity agentEntity = agentService.getById(agentId);
+        agentEntity.setFileIds(fileIds);
+        agentService.updateById(agentEntity);
+        agentService.changeAgent(agentId);
+        return Result.success("文件更新成功");
     }
 
 
@@ -185,4 +196,5 @@ public class AgentController {
         
         return Result.success(options);
     }
+
 }

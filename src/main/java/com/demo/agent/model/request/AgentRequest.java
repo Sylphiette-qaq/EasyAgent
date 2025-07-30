@@ -16,14 +16,17 @@ public class AgentRequest extends BaseEntity {
     private String name;
 
     /** 使用的大语言模型id */
-    @NotBlank(message = "大语言模型id不能为空")
-    @Size(max = 100, message = "大语言模型id不能超过100字符")
-    private String llmModelId;
+    private Long llmModelId;
 
     /** mcp工具列表id用逗号分隔 */
     @NotBlank(message = "mcp工具列表id不能为空")
     @Size(max = 100, message = "mcp工具列表id不能超过100字符")
     private String mcpIds;
+
+    /** 文件列表id用逗号分隔 */
+    @NotBlank(message = "名称不能为空")
+    @Size(max = 100, message = "名称不能超过100字符")
+    private String fileIds;
 
     /** 用户ID */
     private Long userId;
@@ -39,4 +42,4 @@ public class AgentRequest extends BaseEntity {
     /** 状态 */
     @Size(max = 20, message = "状态不能超过20字符")
     private String status;
-} 
+}

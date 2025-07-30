@@ -3,6 +3,7 @@ package com.demo.agent.model.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.demo.agent.annotation.CustomId;
 import lombok.Data;
 import com.demo.agent.model.base.BaseEntity;
 import jakarta.validation.constraints.NotBlank;
@@ -12,10 +13,11 @@ import jakarta.validation.constraints.Size;
  * 用户表
  */
 @Data
-@TableName("user")
+@TableName("users")
 public class UserEntity extends BaseEntity {
     /** 主键ID */
     @TableId(type = IdType.ASSIGN_ID)
+    @CustomId(length = 16)
     private Long id;
 
     /** 用户名 */
@@ -43,4 +45,4 @@ public class UserEntity extends BaseEntity {
     /** 状态（1:正常 0:禁用） */
     @NotBlank(message = "状态不能为空")
     private Integer status;
-} 
+}

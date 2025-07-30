@@ -17,7 +17,8 @@ import java.util.concurrent.atomic.AtomicLong;
 public class CustomIdentifierGenerator implements IdentifierGenerator {
     
     private static final AtomicLong SEQUENCE = new AtomicLong(1000);
-    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyMMddHHmm");
+    private static final long MAX_16_DIGIT = 9999999999999999L; // 16位最大值
     
     @Override
     public Number nextId(Object entity) {
@@ -44,38 +45,49 @@ public class CustomIdentifierGenerator implements IdentifierGenerator {
     
     /**
      * 根据CustomId注解生成自定义ID
+     * 生成16位以下的唯一数字ID
      */
     private Long generateCustomId(CustomId customId) {
-        String prefix = customId.prefix();
-        int length = customId.length();
+        int length = Math.min(customId.length(), 16); // 确保不超过16位
         
-        if (!prefix.isEmpty()) {
-            // 如果有前缀，生成带前缀的ID
-            String timestamp = LocalDateTime.now().format(FORMATTER);
-            String sequence = String.format("%04d", SEQUENCE.getAndIncrement() % 10000);
-            String idStr = prefix + timestamp + sequence;
-            
-            // 确保长度不超过指定长度
-            if (idStr.length() > length) {
-                idStr = idStr.substring(0, length);
-            }
-            
-            return Long.parseLong(idStr.replaceAll("[^0-9]", ""));
-        } else {
-            // 无前缀时生成纯数字ID
-            return generateDefaultId();
+        // 生成基于时间戳的ID，确保16位以下且唯一
+        String timestamp = LocalDateTime.now().format(FORMATTER); // 10位：年月日时分
+        long sequence = SEQUENCE.getAndIncrement() % 999999; // 最多6位序列号
+        
+        // 组合时间戳和序列号，确保总长度不超过16位
+        String idStr = timestamp + String.format("%06d", sequence);
+        
+        // 如果指定长度小于16，截取相应长度
+        if (length < 16 && idStr.length() > length) {
+            idStr = idStr.substring(0, length);
         }
+        
+        Long id = Long.parseLong(idStr);
+        
+        // 确保不超过16位最大值
+        if (id > MAX_16_DIGIT) {
+            id = id % MAX_16_DIGIT;
+        }
+        
+        return id;
     }
     
     /**
-     * 生成默认ID（时间戳 + 序列号）
+     * 生成默认ID（16位以下的时间戳 + 序列号）
      */
     private Long generateDefaultId() {
-        // 使用时间戳（毫秒）+ 序列号的方式生成ID
-        long timestamp = System.currentTimeMillis();
-        long sequence = SEQUENCE.getAndIncrement() % 1000;
+        // 使用简化的时间戳确保16位以下
+        long timestamp = System.currentTimeMillis() / 1000; // 转换为秒级时间戳，减少位数
+        long sequence = SEQUENCE.getAndIncrement() % 9999; // 4位序列号
         
-        // 组合生成19位数字ID
-        return timestamp * 1000 + sequence;
+        // 组合生成ID，确保不超过16位
+        Long id = timestamp * 10000 + sequence;
+        
+        // 确保不超过16位最大值
+        if (id > MAX_16_DIGIT) {
+            id = id % MAX_16_DIGIT;
+        }
+        
+        return id;
     }
 }

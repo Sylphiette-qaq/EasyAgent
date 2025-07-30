@@ -66,7 +66,7 @@ public class McpController {
     @GetMapping("/userMcp")
     public Result<List<McpResponse>> getUserMcp() {
         LambdaQueryWrapper<McpEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.like(McpEntity::getUserId, UserContext.getUserId());
+        wrapper.eq(McpEntity::getUserId, UserContext.getUserId());
         List<McpEntity> list = mcpService.list(wrapper);
         List<McpResponse> respList = list.stream().map(m -> {
             McpResponse resp = new McpResponse();

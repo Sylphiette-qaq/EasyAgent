@@ -14,7 +14,7 @@ import lombok.Data;
 public class AgentEntity extends BaseEntity {
     /** 主键ID */
     @TableId(type = IdType.ASSIGN_ID)
-    @CustomId(prefix = "AGT", length = 10)
+    @CustomId(length = 16)
     private Long id;
 
     /** 名称 */
@@ -23,14 +23,17 @@ public class AgentEntity extends BaseEntity {
     private String name;
 
     /** 使用的大语言模型id */
-    @NotBlank(message = "名称不能为空")
-    @Size(max = 100, message = "名称不能超过100字符")
-    private String llmModelId;
+    private Long llmModelId;
 
     /** mcp工具列表id用逗号分隔 */
     @NotBlank(message = "名称不能为空")
     @Size(max = 100, message = "名称不能超过100字符")
     private String mcpIds;
+
+    /** 文件列表id用逗号分隔 */
+    @NotBlank(message = "名称不能为空")
+    @Size(max = 100, message = "名称不能超过100字符")
+    private String fileIds;
 
     /** 用户ID */
     private Long userId;

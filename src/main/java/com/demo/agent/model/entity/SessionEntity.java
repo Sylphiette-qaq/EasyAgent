@@ -1,6 +1,9 @@
 package com.demo.agent.model.entity;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.demo.agent.annotation.CustomId;
 import com.demo.agent.model.base.BaseEntity;
 import lombok.Data;
 
@@ -9,6 +12,8 @@ import lombok.Data;
 public class SessionEntity extends BaseEntity {
 
     /** 会话id */
+    @TableId(type = IdType.ASSIGN_ID)
+    @CustomId(length = 16)
     private Long id;
 
     /** 会话名称 */

@@ -32,6 +32,7 @@ public class LlmModelController {
         BeanUtils.copyProperties(req, model);
         model.setCreateBy(UserContext.getUserId());
         model.setUpdateBy(UserContext.getUserId());
+        model.setUserId(UserContext.getUserId());
         llmModelService.save(model);
         LlmModelResponse resp = new LlmModelResponse();
         BeanUtils.copyProperties(model, resp);
