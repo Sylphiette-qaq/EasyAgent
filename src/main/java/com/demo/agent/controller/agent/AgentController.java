@@ -102,6 +102,17 @@ public class AgentController {
         return Result.success("文件更新成功");
     }
 
+    /** 更改agent的提示词 */
+    @PostMapping("/changeSystemPrompt")
+    public Result<String> changeSystemPrompt(
+            @RequestParam("agentId") Long agentId, @RequestParam("systemPrompt") String systemPrompt) {
+        AgentEntity agentEntity = agentService.getById(agentId);
+        agentEntity.setSystemPrompt(systemPrompt);
+        agentService.updateById(agentEntity);
+        agentService.changeAgent(agentId);
+        return Result.success("提示词更新成功");
+    }
+
 
     /** 分页展示用户已有的agent */
     @PostMapping("/getUserAgent")
@@ -174,6 +185,8 @@ public class AgentController {
     public Result<Boolean> delete(@PathVariable Long id) {
         return Result.success(agentService.removeById(id));
     }
+
+
 
     /** 获取创建Agent的选项（模型和MCP工具） */
     @GetMapping("/createOptions")

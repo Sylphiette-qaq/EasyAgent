@@ -6,10 +6,10 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableScheduling
-public class AgentApplication {
+public class EasyAgentApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(AgentApplication.class, args);
+        SpringApplication.run(EasyAgentApplication.class, args);
     }
 
 }

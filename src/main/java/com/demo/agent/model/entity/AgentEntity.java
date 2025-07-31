@@ -44,7 +44,7 @@ public class AgentEntity extends BaseEntity {
 
     /** 系统消息 */
     @Size(max = 1000, message = "系统消息不能超过1000字符")
-    private String systemMessage;
+    private String systemPrompt;
 
     /** 状态 */
     @Size(max = 20, message = "状态不能超过20字符")

@@ -5,8 +5,8 @@
     <groupId>com.demo</groupId>
     <artifactId>EasyAgent-backend</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>agentEntity</name>
-    <description>agentEntity</description>
+    <name>EasyAgent</name>
+    <description>EasyAgent</description>
     <properties>
         <java.version>17</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -107,6 +107,17 @@
             <version>2.6.13</version>
         </dependency>
 
+        <!-- MongoDB 依赖 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-mongodb</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mongodb</groupId>
+            <artifactId>mongodb-driver-sync</artifactId>
+        </dependency>
+
 
     </dependencies>
 
@@ -147,7 +158,7 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <version>${spring-boot.version}</version>
                 <configuration>
-                    <mainClass>com.demo.agentEntity.AgentApplication</mainClass>
+                    <mainClass>com.demo.agent.EasyAgentApplication</mainClass>
                     <skip>true</skip>
                 </configuration>
                 <executions>

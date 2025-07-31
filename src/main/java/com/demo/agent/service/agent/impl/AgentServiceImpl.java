@@ -5,22 +5,15 @@ import com.demo.agent.common.UserContext;
 import com.demo.agent.common.redis.RedisOperation;
 import com.demo.agent.mapper.AgentMapper;
 import com.demo.agent.model.entity.*;
-import com.demo.agent.model.entity.FileInfoEntity;
 import com.demo.agent.service.agent.AgentService;
 import com.demo.agent.service.ai.AssistantStream;
 import com.demo.agent.service.ai.LlmModelService;
 import com.demo.agent.service.fileinfo.FileInfoService;
 import com.demo.agent.service.mcp.McpService;
+import com.demo.agent.service.mongodb.MongoContentRetrieverFactory;
 import com.demo.agent.service.session.SessionService;
 import com.demo.agent.tool.McpJsonTool;
 import com.demo.agent.tool.PersistentChatMemoryStore;
-import dev.langchain4j.data.document.Document;
-import dev.langchain4j.data.document.DocumentParser;
-import dev.langchain4j.data.document.DocumentSplitter;
-import dev.langchain4j.data.document.parser.TextDocumentParser;
-import dev.langchain4j.data.document.splitter.DocumentSplitters;
-import dev.langchain4j.data.embedding.Embedding;
-import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.mcp.McpToolProvider;
 import dev.langchain4j.mcp.client.DefaultMcpClient;
 import dev.langchain4j.mcp.client.McpClient;
@@ -33,20 +26,17 @@ import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.embedding.onnx.bgesmallenv15q.BgeSmallEnV15QuantizedEmbeddingModel;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.rag.content.retriever.ContentRetriever;
-import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.TokenStream;
-import dev.langchain4j.store.embedding.EmbeddingStore;
-import dev.langchain4j.store.embedding.EmbeddingStoreIngestor;
-import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore;
+import com.demo.agent.service.mongodb.MongoContentRetriever;
+import com.demo.agent.service.mongodb.MongoVectorStoreService;
+import com.demo.agent.service.mongodb.VectorSimilarityService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Paths;
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -78,6 +68,15 @@ public class AgentServiceImpl extends ServiceImpl<AgentMapper, AgentEntity> impl
 
     @Resource
     private RedisOperation redisOperation;
+    
+    @Resource
+    private MongoVectorStoreService mongoVectorStoreService;
+    
+    @Resource
+    private VectorSimilarityService vectorSimilarityService;
+
+    @Resource
+    private MongoContentRetrieverFactory mongoContentRetrieverFactory;
 
     @Override
     public void addAgentByUser(AgentEntity agentEntity) {
@@ -283,16 +282,16 @@ public class AgentServiceImpl extends ServiceImpl<AgentMapper, AgentEntity> impl
                 .chatMemoryStore(persistentChatMemoryStore)
                 .build();
 
-        // 5.RAG
+        // 5.RAG（使用MongoDB向量存储）
         String uploadDir = "D:/java-project/EasyAgent/EasyAgent-backend/uploads/agent_" + agentId;
-        ContentRetriever contentRetriever = createContentRetriever(uploadDir);
+        ContentRetriever contentRetriever = createContentRetriever(uploadDir, agentId);
 
         // 6.获取系统提示词
-        String systemMessage;
-        if (getById(agentId).getSystemMessage() != null) {
-            systemMessage = getById(agentId).getSystemMessage();
+        String systemPrompt;
+        if (getById(agentId).getSystemPrompt() != null) {
+            systemPrompt = getById(agentId).getSystemPrompt();
         } else {
-            systemMessage = "";
+            systemPrompt = "";
         }
 
 
@@ -302,9 +301,9 @@ public class AgentServiceImpl extends ServiceImpl<AgentMapper, AgentEntity> impl
                 .toolProvider(toolProvider)
                 .chatMemoryProvider(chatMemoryProvider);
 
-        // 只有当systemMessage不为空时才设置systemMessageProvider
-        if (systemMessage != null && !systemMessage.trim().isEmpty()) {
-            builder.systemMessageProvider(chatMemoryId -> systemMessage);
+        // 只有当systemPrompt不为空时才设置systemPromptProvider
+        if (systemPrompt != null && !systemPrompt.trim().isEmpty()) {
+            builder.systemMessageProvider(chatMemoryId -> systemPrompt);
         }
         if(contentRetriever!=null){
             builder.contentRetriever(contentRetriever);
@@ -380,49 +379,39 @@ public class AgentServiceImpl extends ServiceImpl<AgentMapper, AgentEntity> impl
 
 
     /**
-     * 构建检索生成器
-     * @param filesDir
-     * @return
+     * 构建检索生成器（使用MongoDB向量存储和应用层相似度计算）
+     * @param filesDir 文档目录
+     * @param agentId Agent ID
+     * @return ContentRetriever
      */
-    public ContentRetriever createContentRetriever(String filesDir) {
+    public ContentRetriever createContentRetriever(String filesDir, Long agentId) {
         // 检查目录是否存在且为有效目录
         File dir = new File(filesDir);
         if (!dir.exists() || !dir.isDirectory()) {
             return null;
         }
 
-        DocumentParser documentParser = new TextDocumentParser();
-        List<Document> documents;
         try {
-            documents = loadDocuments(filesDir, documentParser);
+            // 创建嵌入模型
+            EmbeddingModel embeddingModel = new BgeSmallEnV15QuantizedEmbeddingModel();
+            
+            // 创建MongoDB内容检索器
+            MongoContentRetriever mongoContentRetriever =
+                    mongoContentRetrieverFactory.createRetriever(embeddingModel, String.valueOf(agentId));
+
+            // 清除旧数据
+            mongoContentRetriever.clearVectorData();
+
+            // 加载文档
+            mongoContentRetriever.loadAndStoreDocuments(filesDir);
+            
+            return mongoContentRetriever;
+            
         } catch (Exception e) {
-            // 处理文件加载异常（如权限问题）
+            System.err.println("创建MongoDB内容检索器失败: " + e.getMessage());
+            e.printStackTrace();
             return null;
         }
-
-        // 检查是否有文档被加载
-        if (documents == null || documents.isEmpty()) {
-            return null;
-        }
-
-        DocumentSplitter splitter = DocumentSplitters.recursive(300, 0);
-        List<TextSegment> segments = splitter.splitAll(documents);
-
-
-        EmbeddingModel embeddingModel = new BgeSmallEnV15QuantizedEmbeddingModel();
-        List<Embedding> embeddings = embeddingModel.embedAll(segments).content();
-
-
-        EmbeddingStore<TextSegment> embeddingStore = new InMemoryEmbeddingStore<>();
-        embeddingStore.addAll(embeddings, segments);
-
-
-        return EmbeddingStoreContentRetriever.builder()
-                .embeddingStore(embeddingStore)
-                .embeddingModel(embeddingModel)
-                .maxResults(2)
-                .minScore(0.5)
-                .build();
     }
 
 }

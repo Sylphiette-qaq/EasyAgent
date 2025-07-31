@@ -18,6 +18,6 @@ public class AgentResponse extends BaseEntity {
     /** 用户ID */
     private Long userId;
     private String description;
-    private String systemMessage;
+    private String systemPrompt;
     private String status;
 }
