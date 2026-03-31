@@ -80,24 +80,37 @@ public class AgentServiceImpl extends ServiceImpl<AgentMapper, AgentEntity> impl
 
     @Override
     public void addAgentByUser(AgentEntity agentEntity) {
-        // 1.判断用户输入的模型是否存在
-        try {
-            if (agentEntity.getLlmModelId() != null) {
-                llmModelService.getById(agentEntity.getLlmModelId());
+        // 1.判断用户输入的模型是否存在（getById 查不到时返回 null，不会抛异常）
+        if (agentEntity.getLlmModelId() != null) {
+            if (llmModelService.getById(agentEntity.getLlmModelId()) == null) {
+                throw new RuntimeException("模型不存在，id=" + agentEntity.getLlmModelId());
             }
-        } catch (Exception e) {
-            throw new RuntimeException("模型不存在");
         }
 
-        // 2.判断用户输入的MCP是否存在
+        // 2.判断用户输入的 MCP 是否存在
         String mcpIds = agentEntity.getMcpIds();
-        String[] mcpIdArray = mcpIds.split(",");
-        try {
-            for (String mcpId : mcpIdArray) {
-                mcpService.getById(mcpId);
+        if (mcpIds == null || mcpIds.isBlank()) {
+            throw new RuntimeException("mcpIds 不能为空");
+        }
+        boolean anyMcp = false;
+        for (String raw : mcpIds.split(",")) {
+            String segment = raw == null ? "" : raw.trim();
+            if (segment.isEmpty()) {
+                continue;
             }
-        } catch (Exception e) {
-            throw new RuntimeException("MCP不存在");
+            anyMcp = true;
+            final long mcpIdLong;
+            try {
+                mcpIdLong = Long.parseLong(segment);
+            } catch (NumberFormatException e) {
+                throw new RuntimeException("MCP ID 格式无效: " + segment, e);
+            }
+            if (mcpService.getById(mcpIdLong) == null) {
+                throw new RuntimeException("MCP不存在，id=" + segment);
+            }
+        }
+        if (!anyMcp) {
+            throw new RuntimeException("至少填写一个有效的 MCP ID");
         }
         agentEntity.setUserId(UserContext.getUserId());
         // 3.新增Agent
