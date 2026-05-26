@@ -62,6 +62,6 @@ langchain4j:
 # 文件上传配置
 file:
   upload:
-    path: D:/java-project/EasyAgent/EasyAgent-backend/uploads
-    allowed-types: txt,pdf,docx,doc
+    path: ${user.home}/.easyagent/uploads
+    allowed-types: txt,pdf,docx
 

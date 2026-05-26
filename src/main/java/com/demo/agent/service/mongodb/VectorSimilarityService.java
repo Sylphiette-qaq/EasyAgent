@@ -21,6 +21,9 @@ public class VectorSimilarityService {
      * @return 余弦相似度值 (0-1之间，1表示完全相似)
      */
     public double cosineSimilarity(List<Double> vector1, List<Double> vector2) {
+        if (vector1 == null || vector2 == null || vector1.isEmpty() || vector2.isEmpty()) {
+            return 0.0;
+        }
         if (vector1.size() != vector2.size()) {
             throw new IllegalArgumentException("向量维度必须相同");
         }
@@ -59,9 +62,16 @@ public class VectorSimilarityService {
         List<SimilarityResult> results = new ArrayList<>();
         
         for (SimilarityResult candidate : candidateVectors) {
+            if (candidate.getVector() == null || candidate.getVector().isEmpty()) {
+                continue;
+            }
             double similarity = cosineSimilarity(queryVector, candidate.getVector());
             candidate.setSimilarity(similarity);
             results.add(candidate);
+        }
+
+        if (results.isEmpty()) {
+            return Collections.emptyList();
         }
         
         // 余弦相似度：值越大越相似

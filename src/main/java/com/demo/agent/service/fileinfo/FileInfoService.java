@@ -30,5 +30,9 @@ public interface FileInfoService extends IService<FileInfoEntity> {
      * @param agentId Agent ID
      * @throws IOException 文件操作异常
      */
-    void saveUploadedFile(MultipartFile file, Long agentId) throws IOException;
+    /**
+     * 保存上传文件并向量化知识库目录
+     * @return 文件记录 ID 与向量分块数
+     */
+    UploadedFileResult saveUploadedFile(MultipartFile file, Long agentId) throws IOException;
 }

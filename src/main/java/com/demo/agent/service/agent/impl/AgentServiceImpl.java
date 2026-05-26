@@ -9,9 +9,10 @@ import com.demo.agent.service.agent.AgentService;
 import com.demo.agent.service.ai.AssistantStream;
 import com.demo.agent.service.ai.LlmModelService;
 import com.demo.agent.service.fileinfo.FileInfoService;
+import com.demo.agent.service.fileinfo.KnowledgeBaseIngestService;
 import com.demo.agent.service.mcp.McpService;
-import com.demo.agent.service.mongodb.MongoContentRetrieverFactory;
 import com.demo.agent.service.session.SessionService;
+import com.demo.agent.tool.McpCommandResolver;
 import com.demo.agent.tool.McpJsonTool;
 import com.demo.agent.tool.PersistentChatMemoryStore;
 import dev.langchain4j.mcp.McpToolProvider;
@@ -22,29 +23,20 @@ import dev.langchain4j.mcp.client.transport.stdio.StdioMcpTransport;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.StreamingChatModel;
-import dev.langchain4j.model.embedding.EmbeddingModel;
-import dev.langchain4j.model.embedding.onnx.bgesmallenv15q.BgeSmallEnV15QuantizedEmbeddingModel;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.rag.content.retriever.ContentRetriever;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.TokenStream;
-import com.demo.agent.service.mongodb.MongoContentRetriever;
-import com.demo.agent.service.mongodb.MongoVectorStoreService;
-import com.demo.agent.service.mongodb.VectorSimilarityService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 
 import static com.demo.agent.common.Constants.MESSAGE_MEMORY_PREFIX;
-import static dev.langchain4j.data.document.loader.FileSystemDocumentLoader.loadDocument;
-import static dev.langchain4j.data.document.loader.FileSystemDocumentLoader.loadDocuments;
-
 
 @Service
 public class AgentServiceImpl extends ServiceImpl<AgentMapper, AgentEntity> implements AgentService {
@@ -70,13 +62,7 @@ public class AgentServiceImpl extends ServiceImpl<AgentMapper, AgentEntity> impl
     private RedisOperation redisOperation;
     
     @Resource
-    private MongoVectorStoreService mongoVectorStoreService;
-    
-    @Resource
-    private VectorSimilarityService vectorSimilarityService;
-
-    @Resource
-    private MongoContentRetrieverFactory mongoContentRetrieverFactory;
+    private KnowledgeBaseIngestService knowledgeBaseIngestService;
 
     @Override
     public void addAgentByUser(AgentEntity agentEntity) {
@@ -296,8 +282,7 @@ public class AgentServiceImpl extends ServiceImpl<AgentMapper, AgentEntity> impl
                 .build();
 
         // 5.RAG（使用MongoDB向量存储）
-        String uploadDir = "D:/java-project/EasyAgent/EasyAgent-backend/uploads/agent_" + agentId;
-        ContentRetriever contentRetriever = createContentRetriever(uploadDir, agentId);
+        ContentRetriever contentRetriever = createContentRetriever(agentId);
 
         // 6.获取系统提示词
         String systemPrompt;
@@ -355,18 +340,20 @@ public class AgentServiceImpl extends ServiceImpl<AgentMapper, AgentEntity> impl
             // stdio连接
             if (mcpEntityById.getType() == 0) {
                 List<String> commandList = new ArrayList<>();
-                String command = mcpServerProperties.getCommand();
-                if ("npx".equals(command)) {
-                    // 替换为系统npx命令路径
-                    command = "C:\\Program Files\\nodejs\\npx.cmd";
-                }
+                String command = McpCommandResolver.resolveStdioExecutable(
+                        mcpServerProperties.getCommand());
                 commandList.add(command);
-                commandList.addAll(mcpServerProperties.getArgs());
+                if (mcpServerProperties.getArgs() != null) {
+                    commandList.addAll(mcpServerProperties.getArgs());
+                }
 
-                StdioMcpTransport stdioMcpTransport = new StdioMcpTransport.Builder()
+                StdioMcpTransport.Builder transportBuilder = new StdioMcpTransport.Builder()
                         .command(commandList)
-                        .logEvents(true)
-                        .build();
+                        .logEvents(true);
+                if (mcpServerProperties.getEnv() != null && !mcpServerProperties.getEnv().isEmpty()) {
+                    transportBuilder.environment(mcpServerProperties.getEnv());
+                }
+                StdioMcpTransport stdioMcpTransport = transportBuilder.build();
 
                 mcpClientList.add(new DefaultMcpClient.Builder()
                         .key(userId + mcpEntityById.getName())
@@ -393,37 +380,24 @@ public class AgentServiceImpl extends ServiceImpl<AgentMapper, AgentEntity> impl
 
     /**
      * 构建检索生成器（使用MongoDB向量存储和应用层相似度计算）
-     * @param filesDir 文档目录
      * @param agentId Agent ID
      * @return ContentRetriever
      */
-    public ContentRetriever createContentRetriever(String filesDir, Long agentId) {
-        // 检查目录是否存在且为有效目录
-        File dir = new File(filesDir);
-        if (!dir.exists() || !dir.isDirectory()) {
-            return null;
-        }
-
+    public ContentRetriever createContentRetriever(Long agentId) {
         try {
-            // 创建嵌入模型
-            EmbeddingModel embeddingModel = new BgeSmallEnV15QuantizedEmbeddingModel();
-            
-            // 创建MongoDB内容检索器
-            MongoContentRetriever mongoContentRetriever =
-                    mongoContentRetrieverFactory.createRetriever(embeddingModel, String.valueOf(agentId));
-
-            // 清除旧数据
-            mongoContentRetriever.clearVectorData();
-
-            // 加载文档
-            mongoContentRetriever.loadAndStoreDocuments(filesDir);
-            
-            return mongoContentRetriever;
-            
+            return knowledgeBaseIngestService.createRetrieverForAgent(agentId);
         } catch (Exception e) {
             System.err.println("创建MongoDB内容检索器失败: " + e.getMessage());
             e.printStackTrace();
             return null;
+        }
+    }
+
+    @Override
+    public void refreshAgentAfterKnowledgeChange(Long agentId) {
+        String cacheKey = String.valueOf(UserContext.getUserId() + agentId);
+        if (assistantMap.containsKey(cacheKey)) {
+            changeAgent(agentId);
         }
     }
 

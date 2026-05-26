@@ -5,11 +5,16 @@ import com.demo.agent.common.UserContext;
 import com.demo.agent.mapper.FileInfoMapper;
 import com.demo.agent.model.entity.FileInfoEntity;
 import com.demo.agent.service.fileinfo.FileInfoService;
+import com.demo.agent.service.fileinfo.KnowledgeBaseIngestService;
+import com.demo.agent.service.fileinfo.UploadPathService;
+import com.demo.agent.service.fileinfo.UploadedFileResult;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.Date;
 
@@ -19,22 +24,28 @@ import java.util.Date;
 @Service
 public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfoEntity> implements FileInfoService {
 
+    private final UploadPathService uploadPathService;
+    private final KnowledgeBaseIngestService knowledgeBaseIngestService;
+
+    public FileInfoServiceImpl(
+            UploadPathService uploadPathService,
+            KnowledgeBaseIngestService knowledgeBaseIngestService) {
+        this.uploadPathService = uploadPathService;
+        this.knowledgeBaseIngestService = knowledgeBaseIngestService;
+    }
+
     @Override
     public void saveFileInfo(FileInfoEntity fileInfoEntity) {
-        // 设置用户ID
         fileInfoEntity.setUserId(UserContext.getUserId());
-        // 设置上传时间
         fileInfoEntity.setUploadTime(LocalDateTime.now());
-        // 设置默认状态为处理中
         if (fileInfoEntity.getStatus() == null) {
             fileInfoEntity.setStatus(0);
         }
-        // 设置基础字段
         fileInfoEntity.setCreateBy(UserContext.getUserId());
         fileInfoEntity.setCreatedAt(new Date());
         fileInfoEntity.setUpdateBy(UserContext.getUserId());
         fileInfoEntity.setUpdatedAt(new Date());
-        
+
         save(fileInfoEntity);
     }
 
@@ -49,39 +60,36 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfoEnt
             updateById(fileInfo);
         }
     }
-    
-    @Override
-    public void saveUploadedFile(MultipartFile file, Long agentId) throws IOException {
-        // 创建文件存储目录
-        String uploadDir = "D:/java-project/EasyAgent/EasyAgent-backend/uploads/agent_" + agentId;
-        File directory = new File(uploadDir);
-        if (!directory.exists()) {
-            directory.mkdirs();
-        }
 
-        // 生成唯一文件名
+    @Override
+    public UploadedFileResult saveUploadedFile(MultipartFile file, Long agentId) throws IOException {
         String originalFilename = file.getOriginalFilename();
-        if (originalFilename == null) {
+        if (originalFilename == null || originalFilename.isBlank()) {
             throw new IOException("文件名不能为空");
         }
 
-        String fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
+        Path agentDir = uploadPathService.ensureAgentDir(agentId);
         String uniqueFilename = System.currentTimeMillis() + "_" + originalFilename;
+        Path targetPath = agentDir.resolve(uniqueFilename).normalize();
 
-        // 保存文件
-        String filePath = uploadDir + "/" + uniqueFilename;
-        File targetFile = new File(filePath);
-        file.transferTo(targetFile);
+        Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
 
         FileInfoEntity fileInfoEntity = new FileInfoEntity();
         fileInfoEntity.setAgentId(agentId);
         fileInfoEntity.setUserId(UserContext.getUserId());
         fileInfoEntity.setOriginalFilename(originalFilename);
-        fileInfoEntity.setFilePath(filePath);
-        fileInfoEntity.setStatus(0); // 处理中
+        fileInfoEntity.setFilePath(targetPath.toAbsolutePath().toString());
+        fileInfoEntity.setStatus(0);
         saveFileInfo(fileInfoEntity);
 
-        // 更新文件状态为已处理
-        updateFileStatus(fileInfoEntity.getId(), 1, null);
+        try {
+            int chunks = knowledgeBaseIngestService.ingestAgentDirectory(agentId);
+            updateFileStatus(fileInfoEntity.getId(), 1, null);
+            return new UploadedFileResult(fileInfoEntity.getId(), chunks);
+        } catch (Exception e) {
+            String err = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+            updateFileStatus(fileInfoEntity.getId(), 2, err);
+            throw new IOException("向量化失败: " + err, e);
+        }
     }
 }

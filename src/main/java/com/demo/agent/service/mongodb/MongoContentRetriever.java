@@ -1,10 +1,11 @@
 package com.demo.agent.service.mongodb;
 
+import com.demo.agent.config.FileUploadProperties;
+import com.demo.agent.service.fileinfo.KnowledgeDocumentParser;
 import com.demo.agent.model.entity.DocumentVector;
 import com.demo.agent.model.entity.VectorSearchResult;
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.DocumentSplitter;
-import dev.langchain4j.data.document.parser.TextDocumentParser;
 import dev.langchain4j.data.document.splitter.DocumentSplitters;
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
@@ -18,8 +19,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -38,6 +37,8 @@ public class MongoContentRetriever implements ContentRetriever {
     private final MongoVectorStoreService mongoVectorStoreService;
 
     private final VectorSimilarityService vectorSimilarityService;
+
+    private final KnowledgeDocumentParser knowledgeDocumentParser;
 
     private EmbeddingModel embeddingModel;
     private String agentId;
@@ -64,7 +65,8 @@ public class MongoContentRetriever implements ContentRetriever {
     public MongoContentRetriever(EmbeddingModel embeddingModel, String agentId,
                                 int maxResults, double similarityThreshold, String similarityType,
                                 MongoVectorStoreService mongoVectorStoreService,
-                                VectorSimilarityService vectorSimilarityService) {
+                                VectorSimilarityService vectorSimilarityService,
+                                KnowledgeDocumentParser knowledgeDocumentParser) {
         this.embeddingModel = embeddingModel;
         this.agentId = agentId;
         this.maxResults = maxResults;
@@ -72,6 +74,7 @@ public class MongoContentRetriever implements ContentRetriever {
         this.similarityType = similarityType;
         this.mongoVectorStoreService = mongoVectorStoreService;
         this.vectorSimilarityService = vectorSimilarityService;
+        this.knowledgeDocumentParser = knowledgeDocumentParser;
     }
 
     /**
@@ -83,9 +86,11 @@ public class MongoContentRetriever implements ContentRetriever {
      */
     public MongoContentRetriever(EmbeddingModel embeddingModel, String agentId,
                                 MongoVectorStoreService mongoVectorStoreService,
-                                VectorSimilarityService vectorSimilarityService) {
-        this(embeddingModel, agentId, DEFAULT_MAX_RESULTS, DEFAULT_SIMILARITY_THRESHOLD, 
-             DEFAULT_SIMILARITY_TYPE, mongoVectorStoreService, vectorSimilarityService);
+                                VectorSimilarityService vectorSimilarityService,
+                                KnowledgeDocumentParser knowledgeDocumentParser) {
+        this(embeddingModel, agentId, DEFAULT_MAX_RESULTS, DEFAULT_SIMILARITY_THRESHOLD,
+                DEFAULT_SIMILARITY_TYPE, mongoVectorStoreService, vectorSimilarityService,
+                knowledgeDocumentParser);
     }
 
     @Override
@@ -136,20 +141,18 @@ public class MongoContentRetriever implements ContentRetriever {
             List<DocumentVector> documentVectors = new ArrayList<>();
 
             if (file.isDirectory()) {
-                // 处理目录中的所有文件
                 File[] files = file.listFiles((dir, name) ->
-                    name.toLowerCase().endsWith(".txt") ||
-                    name.toLowerCase().endsWith(".md") ||
-                    name.toLowerCase().endsWith(".doc"));
+                        FileUploadProperties.isSupportedKnowledgeFileName(name));
 
                 if (files != null) {
                     for (File docFile : files) {
                         documentVectors.addAll(processDocument(docFile));
                     }
                 }
-            } else {
-                // 处理单个文件
+            } else if (FileUploadProperties.isSupportedKnowledgeFileName(file.getName())) {
                 documentVectors.addAll(processDocument(file));
+            } else {
+                logger.warn("不支持的文件类型，跳过: {}", file.getName());
             }
 
             // 批量存储到MongoDB
@@ -176,10 +179,14 @@ public class MongoContentRetriever implements ContentRetriever {
         List<DocumentVector> documentVectors = new ArrayList<>();
 
         try {
-            // 1. 解析文档
-            Document document = new TextDocumentParser().parse(new FileInputStream(file));
+            Document document = knowledgeDocumentParser.parse(file);
+            String text = document.text();
+            if (text == null || text.isBlank()) {
+                logger.warn("文档解析结果为空: {}", file.getName());
+                return documentVectors;
+            }
 
-            // 2. 分割文档
+            // 分割文档
             DocumentSplitter splitter = DocumentSplitters.recursive(300, 50);
             List<TextSegment> segments = splitter.split(document);
 

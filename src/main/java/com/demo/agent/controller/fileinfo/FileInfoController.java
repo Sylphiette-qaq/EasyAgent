@@ -8,7 +8,9 @@ import com.demo.agent.common.UserContext;
 import com.demo.agent.model.entity.FileInfoEntity;
 import com.demo.agent.model.request.FileInfoRequest;
 import com.demo.agent.model.response.FileInfoResponse;
+import com.demo.agent.config.FileUploadProperties;
 import com.demo.agent.service.fileinfo.FileInfoService;
+import com.demo.agent.service.fileinfo.UploadedFileResult;
 import com.demo.agent.service.agent.AgentService;
 import com.demo.agent.model.entity.AgentEntity;
 import org.springframework.beans.BeanUtils;
@@ -30,6 +32,12 @@ public class FileInfoController {
     
     @Autowired
     private FileInfoService fileInfoService;
+
+    @Autowired
+    private FileUploadProperties fileUploadProperties;
+
+    @Autowired
+    private AgentService agentService;
 
 
     /** 新增文件信息 */
@@ -203,22 +211,33 @@ public class FileInfoController {
                 return Result.fail("文件不能为空");
             }
             
-            // 2. 验证文件类型（支持txt, pdf, docx等）
+            // 2. 验证文件类型（支持 txt, pdf, docx）
             String originalFilename = file.getOriginalFilename();
             if (originalFilename == null) {
                 return Result.fail("文件名不能为空");
             }
             
             String fileExtension = getFileExtension(originalFilename);
-            if (!isValidFileType(fileExtension)) {
-                return Result.fail("不支持的文件类型，仅支持: txt, pdf, docx, doc");
+            if (!fileUploadProperties.isAllowedExtension(fileExtension)) {
+                return Result.fail("不支持的文件类型，仅支持: " + fileUploadProperties.allowedTypesLabel());
             }
             
-            // 3. 保存文件到指定目录
-            fileInfoService.saveUploadedFile(file, agentId);
+            // 3. 保存并向量化
+            UploadedFileResult uploaded = fileInfoService.saveUploadedFile(file, agentId);
 
             Map<String, Object> result = new HashMap<>();
-            result.put("message", "文件上传并向量化成功");
+            String message;
+            if (uploaded.vectorChunks() > 0) {
+                message = "文件上传成功，已向量化 " + uploaded.vectorChunks() + " 个文本分块";
+            } else {
+                message = "文件已保存，向量化未产生有效分块（请检查文件格式与内容）";
+            }
+            result.put("message", message);
+            result.put("fileInfoId", uploaded.fileInfoId());
+            result.put("vectorChunks", uploaded.vectorChunks());
+
+            // 若用户已发起过对话，内存中的 Agent 未挂载 RAG，需重建
+            agentService.refreshAgentAfterKnowledgeChange(agentId);
             
             return Result.success(result);
             
@@ -236,9 +255,4 @@ public class FileInfoController {
         return filename.substring(filename.lastIndexOf(".")).toLowerCase();
     }
     
-    /** 验证文件类型 */
-    private boolean isValidFileType(String extension) {
-        return extension.equals(".txt") || extension.equals(".pdf") || 
-               extension.equals(".docx") || extension.equals(".doc");
-    }
 }

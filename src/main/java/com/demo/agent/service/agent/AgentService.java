@@ -30,4 +30,9 @@ public interface AgentService extends IService<AgentEntity> {
     public void useAgentStream(Long agentId, Long sessionId, String userInput, SseEmitter emitter);
 
     void changeAgent(Long agentId);
+
+    /**
+     * 知识库文件变更后，若当前用户已缓存该 Agent 实例则重建以启用/更新 RAG
+     */
+    void refreshAgentAfterKnowledgeChange(Long agentId);
 }

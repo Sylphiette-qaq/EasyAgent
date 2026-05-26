@@ -1,5 +1,6 @@
 package com.demo.agent.service.mongodb;
 
+import com.demo.agent.service.fileinfo.KnowledgeDocumentParser;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -18,6 +19,9 @@ public class MongoContentRetrieverFactory {
     @Autowired
     private VectorSimilarityService vectorSimilarityService;
 
+    @Autowired
+    private KnowledgeDocumentParser knowledgeDocumentParser;
+
     /**
      * 创建MongoContentRetriever实例（使用默认配置）
      * @param embeddingModel 嵌入模型
@@ -26,10 +30,11 @@ public class MongoContentRetrieverFactory {
      */
     public MongoContentRetriever createRetriever(EmbeddingModel embeddingModel, String agentId) {
         return new MongoContentRetriever(
-            embeddingModel, 
-            agentId, 
-            mongoVectorStoreService, 
-            vectorSimilarityService
+            embeddingModel,
+            agentId,
+            mongoVectorStoreService,
+            vectorSimilarityService,
+            knowledgeDocumentParser
         );
     }
 
@@ -46,13 +51,14 @@ public class MongoContentRetrieverFactory {
                                                  int maxResults, double similarityThreshold, 
                                                  String similarityType) {
         return new MongoContentRetriever(
-            embeddingModel, 
-            agentId, 
-            maxResults, 
-            similarityThreshold, 
+            embeddingModel,
+            agentId,
+            maxResults,
+            similarityThreshold,
             similarityType,
-            mongoVectorStoreService, 
-            vectorSimilarityService
+            mongoVectorStoreService,
+            vectorSimilarityService,
+            knowledgeDocumentParser
         );
     }
 
@@ -65,13 +71,14 @@ public class MongoContentRetrieverFactory {
      */
     public MongoContentRetriever createRetriever(EmbeddingModel embeddingModel, String agentId, int maxResults) {
         return new MongoContentRetriever(
-            embeddingModel, 
-            agentId, 
-            maxResults, 
-            0.7, // 默认相似度阈值
-            "cosine", // 默认相似度类型
-            mongoVectorStoreService, 
-            vectorSimilarityService
+            embeddingModel,
+            agentId,
+            maxResults,
+            0.7,
+            "cosine",
+            mongoVectorStoreService,
+            vectorSimilarityService,
+            knowledgeDocumentParser
         );
     }
 }

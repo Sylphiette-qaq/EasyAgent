@@ -9,6 +9,7 @@ import com.demo.agent.model.entity.McpServerProperties;
 import com.demo.agent.model.entity.McpToolConfig;
 import com.demo.agent.service.mcp.McpService;
 import com.demo.agent.tool.McpJsonTool;
+import com.demo.agent.tool.McpTypeResolver;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -81,7 +82,7 @@ public class McpServiceImpl extends ServiceImpl<McpMapper, McpEntity> implements
             String name = entry.getKey();
             McpServerProperties properties = entry.getValue();
             McpEntity mcpEntity = new McpEntity();
-            mcpEntity.setType(Eums.McpTypeEnum.SSE.getCode());
+            mcpEntity.setType(McpTypeResolver.resolveMcpType(properties));
             mcpEntity.setName(name);
             mcpEntity.setJson(McpJsonTool.parseObjectToJson(properties));
             mcpEntity.setUserId(UserContext.getUserId());
@@ -107,6 +108,12 @@ public class McpServiceImpl extends ServiceImpl<McpMapper, McpEntity> implements
      * @throws RuntimeException 当连接不可用时抛出异常
      */
     private void validateSseConnection(String toolName, McpServerProperties properties) {
+        if (McpTypeResolver.isStdioOnly(properties)) {
+            throw new RuntimeException(String.format(
+                    "工具 '%s' 为 stdio 配置（含 command），请使用管理员上传接口 /mcp/uploadAdmin",
+                    toolName));
+        }
+
         String url = properties.getUrl();
 
         if (url == null || url.trim().isEmpty()) {

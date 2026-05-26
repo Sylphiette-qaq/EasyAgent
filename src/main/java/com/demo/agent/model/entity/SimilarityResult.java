@@ -14,7 +14,10 @@ public class SimilarityResult {
     private double similarity;
     private List<Double> vector;
 
-
-    public SimilarityResult(String id, String content, double v, List<Double> vector) {
+    public SimilarityResult(String documentId, String content, double similarity, List<Double> vector) {
+        this.documentId = documentId;
+        this.content = content;
+        this.similarity = similarity;
+        this.vector = vector;
     }
 }

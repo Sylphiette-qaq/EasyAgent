@@ -90,6 +90,13 @@
             <version>1.1.0-beta7</version>
         </dependency>
 
+        <!-- docx / pdf 等 Office 文档解析 -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-document-parser-apache-tika</artifactId>
+            <version>1.1.0-beta7</version>
+        </dependency>
+
 
         <dependency>
             <groupId>io.modelcontextprotocol.sdk</groupId>

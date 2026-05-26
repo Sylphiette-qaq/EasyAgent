@@ -77,6 +77,10 @@ public class MongoVectorStoreService {
             List<VectorEmbedding> embeddings = new ArrayList<>();
             
             for (DocumentVector doc : documents) {
+                if (doc.getVector() == null || doc.getVector().isEmpty()) {
+                    logger.warn("跳过无向量数据的分块，Agent: {}", agentId);
+                    continue;
+                }
                 VectorEmbedding embedding = new VectorEmbedding();
                 embedding.setId(UUID.randomUUID().toString());
                 embedding.setContent(doc.getContent());
@@ -85,9 +89,14 @@ public class MongoVectorStoreService {
                 embedding.setAgentId(agentId);
                 embedding.setCreatedAt(LocalDateTime.now());
                 embedding.setUpdatedAt(LocalDateTime.now());
-                
+
                 embeddings.add(embedding);
                 documentIds.add(embedding.getId());
+            }
+
+            if (embeddings.isEmpty()) {
+                logger.warn("无有效向量可写入，Agent: {}", agentId);
+                return documentIds;
             }
             
             mongoTemplate.insertAll(embeddings);
@@ -127,13 +136,19 @@ public class MongoVectorStoreService {
             // 将当前agent所有的文档转换为相似度计算格式
             // todo 可优化，通过摘要判断只提取相关的
             List<SimilarityResult> candidates = allEmbeddings.stream()
+                .filter(e -> e.getVector() != null && !e.getVector().isEmpty())
                 .map(embedding -> new SimilarityResult(
                     embedding.getId(),
                     embedding.getContent(),
-                    0.0, // 初始相似度
+                    0.0,
                     embedding.getVector()
                 ))
                 .collect(Collectors.toList());
+
+            if (candidates.isEmpty()) {
+                logger.warn("Agent {} 的向量文档均无有效 vector 字段，请重新上传知识库文件", agentId);
+                return new ArrayList<>();
+            }
             
             // 执行相似度搜索
             List<SimilarityResult> similarityResults = 
